@@ -4,6 +4,7 @@ from typing import Protocol, TypeVar, Generic, Callable, runtime_checkable, Iter
 import random
 import math
 import seaborn as sns
+import pandas as pd
 
 X = TypeVar("X")   # element / point
 E = TypeVar("E")   # event representation
@@ -524,12 +525,12 @@ if __name__ == "__main__":
     rng = random.Random(0)
 
     # --- Demo parameters (edit these) ---
-    d = 2   # dimension of R^d
+    d = 3   # dimension of R^d
     p = 2.0 # set to 1<=p<=math.inf (math.inf for supremum norm) (for this range Minkowski inequality holds)
     step_std = 0.5
     init_std = 1.0
-    n_steps = 100
-    max_depth = 2
+    n_steps = 200
+    max_depth = 3
 
     # initial point
     origin: PointRd = tuple(0.0 for _ in range(d))
@@ -548,6 +549,9 @@ if __name__ == "__main__":
     fam = generate_event_family(gens, max_depth=max_depth)
     print(f"Generated {len(fam)} events (R^{d}, p={p}, depth={max_depth}).")
 
+    # TODO: do sanity and contract checks (monte carlo style) using this generated set, or maybe use estimate_prob
+        # for this we should import from contract_checks, so we should modularize
+
     # Random walk in R^d
     mp = MarkovProcess(
         init=NormalRd(mean=origin, std=init_std),
@@ -555,7 +559,9 @@ if __name__ == "__main__":
     )
     path = mp.sample_path(n_steps, rng=rng)
 
-    # Plot the first coordinate over time
-    coord0 = [pt[0] for pt in path]
-    t = list(range(len(coord0)))
-    sns.lineplot(x=t, y=coord0)
+    # Plot time vs point_i for i = 1,...,d (shown as x1..xd)
+    df = pd.DataFrame(path, columns=[f"x{i}" for i in range(1, d + 1)])
+    df.insert(0, "t", range(len(path)))  # time column first
+
+    df_long = df.melt(id_vars="t", var_name="coord", value_name="value")
+    sns.lineplot(data=df_long, x="t", y="value", hue="coord")
