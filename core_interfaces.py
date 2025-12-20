@@ -1,10 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Protocol, TypeVar, Generic, Callable, runtime_checkable, Iterable, TypeAlias, Any
+from typing import Protocol, TypeVar, Generic, Callable, runtime_checkable, TypeAlias, Any
 import random
 import math
-import seaborn as sns
-import pandas as pd
 
 X = TypeVar("X")   # element / point
 E = TypeVar("E")   # event representation
@@ -13,6 +11,8 @@ E = TypeVar("E")   # event representation
 PointRd: TypeAlias = tuple[float, ...]
 
 # TODO: finalize a contract testing file holding axiom checks by runtime / property-based tests
+
+# TODO: would it be handy to use from typing the import Iterable
 
 # we use a Protocol to be a contract describing required methods on a class
 
@@ -521,47 +521,3 @@ def generate_event_family(
     out.sort(key=event_key)
     return out
 
-if __name__ == "__main__":
-    rng = random.Random(0)
-
-    # --- Demo parameters (edit these) ---
-    d = 3   # dimension of R^d
-    p = 2.0 # set to 1<=p<=math.inf (math.inf for supremum norm) (for this range Minkowski inequality holds)
-    step_std = 0.5
-    init_std = 1.0
-    n_steps = 200
-    max_depth = 3
-
-    # initial point
-    origin: PointRd = tuple(0.0 for _ in range(d))
-
-    # build some open balls (generators) in R^d using the chosen L^p metric
-    metric = LpMetricRd(p=p)
-    borel = StdBorelSpaceRd(metric=metric)
-    gens = [
-        borel.ball(center=origin, radius=1.0),
-        borel.ball(center=tuple(1.0 for _ in range(d)), radius=0.75),
-        borel.ball(center=tuple(-1.0 for _ in range(d)), radius=0.5),
-    ]
-    
-    # -----------------------------------
-
-    fam = generate_event_family(gens, max_depth=max_depth)
-    print(f"Generated {len(fam)} events (R^{d}, p={p}, depth={max_depth}).")
-
-    # TODO: do sanity and contract checks (monte carlo style) using this generated set, or maybe use estimate_prob
-        # for this we should import from contract_checks, so we should modularize
-
-    # Random walk in R^d
-    mp = MarkovProcess(
-        init=NormalRd(mean=origin, std=init_std),
-        kernel=RandomWalkKernelRd(step_std=step_std),
-    )
-    path = mp.sample_path(n_steps, rng=rng)
-
-    # Plot time vs point_i for i = 1,...,d (shown as x1..xd)
-    df = pd.DataFrame(path, columns=[f"x{i}" for i in range(1, d + 1)])
-    df.insert(0, "t", range(len(path)))  # time column first
-
-    df_long = df.melt(id_vars="t", var_name="coord", value_name="value")
-    sns.lineplot(data=df_long, x="t", y="value", hue="coord")
