@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, TypeVar, Generic, Callable, runtime_checkable
 import random
-from core_interfaces import MetricSpace, Sampler, X, Event, E, MarkovKernel
+from core_interfaces import MetricSpace, Sampler, X, Event, E, MarkovKernel, MeasurableSpace, Measure
 
 def check_metric_contract_in_R(
     metric: MetricSpace[X],
