@@ -557,4 +557,5 @@ if __name__ == "__main__":
 
     # Plot the first coordinate over time
     coord0 = [pt[0] for pt in path]
-    sns.lineplot(y=coord0)
+    t = list(range(len(coord0)))
+    sns.lineplot(x=t, y=coord0)
