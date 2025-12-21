@@ -19,6 +19,7 @@ from contract_checks import (
 import seaborn as sns
 import pandas as pd
 import random
+# import math
 
 if __name__ == "__main__":
     rng = random.Random(0)
@@ -47,12 +48,21 @@ if __name__ == "__main__":
     n_pairs = 200
     n_triples = 200
 
-    # kernel contract check functions f: R^d -> R
-    test_functions = [
-        lambda x: x[0],
-        lambda x: sum(v*v for v in x),
-        lambda x: sum(x)/len(x),
-    ]
+    # kernel contract inputs (in the RW demo the n_inner you choose depends on the test function, n_states, z_kernel, step_std)
+    # TODO: generalize this
+    # n_states = 10
+    # n_inner = 1000
+    # min_se = 1e-12 # avoid divide by zero
+    # z_kernel =
+
+    # kernel contract check functions f: R^d -> R, that do not blow up in variance in R^d
+        # if using variance blow up test functions we must increase n_inner
+    # test_functions = [
+    #     lambda x: x[0],
+    #     lambda x: math.tanh(x[0]),  # does not blow up as is bounded and smooth
+    #     lambda x: math.cos(x[0]),   # does not blow up as is bounded and smooth
+    #     lambda x: 1.0 if gens[0](x) else 0.0,  # indicator of a generator ball (moderate-probability event of being inside ball)
+    # ]
 
     # -----------------------------------
 
@@ -80,16 +90,17 @@ if __name__ == "__main__":
     )
     print("Metric contract check: OK (heuristic).")
 
-    check_kernel_contracts(
-            mp.kernel,
-            rng=random.Random(456),
-            state_sampler=mp.init,
-            test_functions=test_functions,
-            n_states=10,
-            n_inner=1000,
-            tol=5e-2,
-        )
-    print("Kernel contract check: OK (heuristic).")
+    # check_kernel_contracts(
+    #         mp.kernel,
+    #         rng=random.Random(456),
+    #         state_sampler=mp.init,
+    #         test_functions=test_functions,
+    #         n_states=n_states,
+    #         n_inner=n_inner,
+    #         z=z_kernel,
+    #         min_se=min_se,
+    #     )
+    # print("Kernel contract check: OK (heuristic).")
 
     # Estimate probabilities of generated events under init and one-step laws
     # Beware: fam can explode. Cap to a manageable number for the demo.

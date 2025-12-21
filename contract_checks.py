@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, TypeVar, Generic, Callable, runtime_checkable
 import random
+import math
 from core_interfaces import MetricSpace, Sampler, X, Event, E, MarkovKernel, MeasurableSpace, Measure
 
 def check_metric_contract(
@@ -145,45 +146,42 @@ def check_kernel_contracts(
     test_functions: list[Callable[[X], float]],
     n_states: int = 20,
     n_inner: int = 2000,
-    tol: float = 5e-2,
+    z: float = 4.0,          # how many standard errors you allow
+    min_se: float = 1e-12,   # avoid division by 0
 ) -> None:
-    """
-    Checks that:
-      - kernel.law(x) returns something with .sample
-      - "two-step sampling" via kernel is consistent with itself
-        by comparing Monte Carlo estimates of E[f(X2)] computed in two equivalent ways.
-    """
-    # You can’t enforce “Markov property” directly (it’s about conditional independence w.r.t. a filtration)
-    # but you can test composition behavior on a few test functions (bounded observables).
-    # So it is just a sanity check
+    # TODO: generalize this function to work for more than Random walk (we must create some rule for setting n_inner using se from a MC sample)
     for _ in range(n_states):
         x0 = state_sampler.sample(rng)
         law1 = kernel.law(x0)
         assert hasattr(law1, "sample"), "kernel.law(x) must return a Sampler"
 
-        # For each test function f, estimate E[f(X2)] where X2 is after 2 steps.
-        # test functions must accept R^d vectors, e.g.,
-            # lambda x: x[0],
-            # lambda x: sum(v*v for v in x),
-            # lambda x: sum(x)/len(x),
-        # Way 1: simulate two-step directly: x1~K(x0), x2~K(x1)
         for f in test_functions:
-            acc_direct = 0.0
+            # Way 1 samples
+            vals1 = []
             for _ in range(n_inner):
                 x1 = kernel.law(x0).sample(rng)
                 x2 = kernel.law(x1).sample(rng)
-                acc_direct += f(x2)
-            est_direct = acc_direct / n_inner
+                vals1.append(f(x2))
+            m1 = sum(vals1) / n_inner
+            v1 = sum((u - m1) ** 2 for u in vals1) / max(1, n_inner - 1)
+            se1 = math.sqrt(v1 / n_inner)
 
-            # Way 2: simulate a path of length 3 and take last (still two steps, just written differently)
-            acc_path = 0.0
+            # Way 2 samples (independent stream because rng has advanced)
+            vals2 = []
             for _ in range(n_inner):
                 x1 = kernel.law(x0).sample(rng)
                 x2 = kernel.law(x1).sample(rng)
-                acc_path += f(x2)
-            est_path = acc_path / n_inner
+                vals2.append(f(x2))
+            m2 = sum(vals2) / n_inner
+            v2 = sum((u - m2) ** 2 for u in vals2) / max(1, n_inner - 1)
+            se2 = math.sqrt(v2 / n_inner)
 
-            assert abs(est_direct - est_path) <= tol, (
-                f"Kernel 2-step consistency check failed for f: "
-                f"{est_direct} vs {est_path}"
+            # Combine standard errors
+            se = math.sqrt(se1 * se1 + se2 * se2)
+            se = max(se, min_se)
+
+            diff = abs(m1 - m2)
+            assert diff <= z * se, (
+                f"Kernel sanity check failed (diff too large): diff={diff}, "
+                f"allowed≈{z*se} (z={z}, se={se})"
             )
