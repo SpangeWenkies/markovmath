@@ -195,6 +195,8 @@ if __name__ == "__main__":
     pAc = estimate_prob(mp.init, Ac, mc_n, random.Random(3))
     print(f"Complement additivity: P(A)+P(Ac)≈{pA+pAc:.4f} (should be ≈ 1)")
 
+    # note following plot has nothing to do with the generated events
+    
     # Plot time vs point_i for i = 1,...,d (shown as x1..xd)
     df = pd.DataFrame(path, columns=[f"x{i}" for i in range(1, d + 1)])
     df.insert(0, "t", range(len(path)))  # time column first
