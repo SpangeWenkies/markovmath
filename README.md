@@ -29,7 +29,7 @@ In addition, the project aims to encode the **theorems/lemmas/definitions** requ
 * analytic objects (forms, generators, semigroups),
 * and potential-theoretic objects (excessive functions, resolvents, capacities).
 
-The philosophy is: *represent the objects in code with clear interfaces, document the math contract each interface implies, then validate implementations with lightweight tests and examples.*
+The philosophy is: *represent the objects in code with clear interfaces to follow mathematics and statistic, document the math contract each interface implies, then validate implementations with lightweight tests and examples.*
 
 ---
 
@@ -63,7 +63,7 @@ Because Python cannot enforce measure-theoretic axioms at the type level, the pr
 * kernel sanity (sampling validity; basic consistency checks via test functions)
 * measure-like sanity on finite event families (monotonicity/additivity heuristics)
 
-These tests don’t prove theorems, but they catch implementation bugs early and make the abstractions usable.
+These tests **don’t** prove theorems, but they catch implementation bugs early and make the abstractions usable.
 
 ---
 
@@ -75,7 +75,7 @@ The intended baseline setting is **standard Borel / Polish spaces**, where:
 
 * measurable sets are typically the **Borel σ-algebra**,
 * Markov kernels are measurable in the state variable,
-* and many results (regular conditional probabilities, disintegrations, etc.) behave well.
+* many results (regular conditional probabilities, disintegrations, etc.) behave well.
 
 ### Symmetry, Dirichlet forms, and Hunt processes
 
@@ -171,13 +171,7 @@ The goal is to connect rigorous Markov process structure (kernels, resolvents, s
 
 ## Getting started (quick demo)
 
-A typical workflow:
-
-1. choose a dimension (d) and an (L^p) metric (which induces the standard topology on (\mathbb{R}^d)),
-2. build a few generator open balls,
-3. generate a finite event family,
-4. simulate a Markov process path,
-5. estimate event probabilities by Monte Carlo and run sanity checks.
+...
 
 (See the demo in the main script for a concrete example.)
 
