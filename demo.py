@@ -52,8 +52,7 @@ if __name__ == "__main__":
     
 
     # TODO: do sanity and contract checks (monte carlo style) using this generated set, or maybe use estimate_prob
-        # for this we should import from contract_checks, so we should modularize
-        # we must also make the contract checks work in R^d first
+        # we must make the contract checks work in R^d first
 
     # Random walk in R^d
     mp = MarkovProcess(
