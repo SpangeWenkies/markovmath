@@ -4,7 +4,7 @@ from typing import Protocol, TypeVar, Generic, Callable, runtime_checkable
 import random
 from core_interfaces import MetricSpace, Sampler, X, Event, E, MarkovKernel, MeasurableSpace, Measure
 
-def check_metric_contract_in_R(
+def check_metric_contract(
     metric: MetricSpace[X],
     point_sampler: Sampler[X],
     *,
@@ -104,6 +104,11 @@ def check_measure_contracts(
             μ(A∪B) ≈ μ(A)+μ(B)
     """
 
+    # Assumes we know the measure as a function of an event. This is almost never the case.
+    # In many cases we do not have exact μ(A), but we have it through sampling
+    # We then can have measure be a monte carlo wrapper implementing the .measure() by sampling, 
+    # but we then must account in the contract checks for monte carlo noise
+
     # Empty set sanity
     mu_empty = mu.measure(space.empty())
     assert abs(mu_empty - 0.0) <= tol, f"Expected μ(∅)=0, got {mu_empty}"
@@ -157,6 +162,10 @@ def check_kernel_contracts(
         assert hasattr(law1, "sample"), "kernel.law(x) must return a Sampler"
 
         # For each test function f, estimate E[f(X2)] where X2 is after 2 steps.
+        # test functions must accept R^d vectors, e.g.,
+            # lambda x: x[0],
+            # lambda x: sum(v*v for v in x),
+            # lambda x: sum(x)/len(x),
         # Way 1: simulate two-step directly: x1~K(x0), x2~K(x1)
         for f in test_functions:
             acc_direct = 0.0
