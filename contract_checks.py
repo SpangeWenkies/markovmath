@@ -15,6 +15,10 @@ from core_interfaces import (
     Union,
     Complement,
 )
+from operator_layer import (
+    DiscountedResolvent,
+    Observable,
+)
 
 
 def estimate_prob(
@@ -334,3 +338,58 @@ def check_event_probabilities_monotonicity_additivity(
     Ac = Complement(A)
     pAc = estimate_prob(mp.init, Ac, mc_n, random.Random(3))
     print(f"Complement additivity: P(A)+P(Ac)≈{pA + pAc:.4f} (should be ≈ 1)")
+
+
+def check_discrete_resolvent_identity(
+    kernel: MarkovKernel[X],
+    resolvent: DiscountedResolvent[X],
+    f: Observable[X],
+    *,
+    rng: random.Random,
+    state_sampler: Sampler[X],
+    n_states: int = 8,
+    # LHS: U_\lambda f(x)
+    n_paths_lhs: int = 2000,
+    # RHS: f(x) + \lambda T(U_\lambda f)(x)
+    n_outer: int = 400,  # samples for T(·) expectation
+    n_paths_inner: int = 400,  # paths to estimate U_\lambda f at each sampled next-state
+    tol: float = 0.15,
+) -> None:
+    """
+    Numerically verifies the discrete resolvent identity:
+
+        U_\lambda f(x) = f(x) + \lambda (T U_\lambda f)(x)
+        where (Tg)(x) = E_x[g(X_1)].
+
+    We estimate:
+      - LHS via resolvent.estimate_U(f, x, n_paths_lhs)
+      - RHS via f(x) + \lambda * average_{j=1..n_outer} U_\lambda f(X1_j),
+        where X1_j ~ K(x,·) and each U_\lambda f(X1_j) is itself estimated by Monte Carlo.
+
+    Notes:
+      - This is a nested Monte Carlo check, which sadly means variance can be high for unbounded f.
+        Prefer bounded f (indicators, tanh, cos, clipped observables).
+      - Passing the check provides confidence; failure indicates either a bug or insufficient sampling.
+    """
+    lam = resolvent.lam
+    for i in range(n_states):
+        x0 = state_sampler.sample(rng)
+
+        # LHS estimate
+        lhs = resolvent.estimate_U(f, x0, n_paths=n_paths_lhs, rng=rng)
+
+        # RHS estimate: f(x0) + lam * E[ U f(X1) ]
+        acc = 0.0
+        for j in range(n_outer):
+            x1 = kernel.law(x0).sample(rng)
+            u_x1 = resolvent.estimate_U(f, x1, n_paths=n_paths_inner, rng=rng)
+            acc += u_x1
+        rhs = f(x0) + lam * (acc / n_outer)
+
+        err = abs(lhs - rhs)
+        assert err <= tol, (
+            "Discounted resolvent identity check failed:\n"
+            f"  |U f(x) - (f(x) + \lambda T(U f)(x))| = {err}\n"
+            f"  \lambda={lam}, tol={tol}\n"
+            f"  lhs={lhs}, rhs={rhs}\n"
+        )
