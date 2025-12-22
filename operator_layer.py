@@ -149,13 +149,13 @@ def indicator(A: Callable[[X], bool]) -> Observable[X]:
 # gives the probability P(X_10 ∈ A | x0)
 
 @dataclass(slots=True)
-class DiscountedResolvent(Generic[X]):
+class DiscreteResolvent(Generic[X]):
     """
-    Discounted (discrete-time) resolvent for a Markov chain:
+    Discrete resolvent for a Markov chain:
 
         U_\lambda f(x) = \Sum_{k=0}^\infty \lambda^k E_x[f(X_k)],    0<\lambda<1.
 
-    Unbiased + fast Monte Carlo estimator of the discounted resolvent
+    Unbiased + fast Monte Carlo estimator of the discrete resolvent
     This version is unbiased:
     Let N be a random (geometric) stopping time defined by the rule:
         start at k=0

@@ -16,7 +16,7 @@ from core_interfaces import (
     Complement,
 )
 from operator_layer import (
-    DiscountedResolvent,
+    DiscreteResolvent,
     Observable,
 )
 
@@ -342,7 +342,7 @@ def check_event_probabilities_monotonicity_additivity(
 
 def check_discrete_resolvent_identity(
     kernel: MarkovKernel[X],
-    resolvent: DiscountedResolvent[X],
+    resolvent: DiscreteResolvent[X],
     f: Observable[X],
     *,
     rng: random.Random,
