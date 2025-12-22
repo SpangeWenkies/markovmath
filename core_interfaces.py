@@ -286,6 +286,9 @@ class RandomWalkKernelRd(MarkovKernel[PointRd]):
 class CorrelatedGaussianNoiseRd:
     """
     Samples eps ~ N(0, Σ) on R^d where Σ = D R D (stds + corr).
+    Uses cholesky decomp, which means we require positive definite matrices
+    TODO: If we want positive semi definite correlation matrix we need to make an eigen/SVD-based sampler
+        A correlation matrix needs to be only positive semi definite, symmetric and diagonal one
     """
 
     stds: PointRd
@@ -311,6 +314,26 @@ class CorrelatedGaussianNoiseRd:
             y[i] = s
         return tuple(y)
 
+@dataclass(frozen=True, slots=True)
+class ShiftedCorrelatedGaussianNoiseRd:
+    base: CorrelatedGaussianNoiseRd
+    shift: PointRd
+
+    def sample(self, rng: random.Random) -> PointRd:
+        eps = self.base.sample(rng)
+        if len(eps) != len(self.shift):
+            raise ValueError("dimension mismatch in ShiftedSamplerRd")
+        return tuple(self.shift[i] + eps[i] for i in range(len(eps)))
+
+@dataclass(frozen=True, slots=True)
+class CorrelatedGaussianRandomWalkKernelRd:
+    """
+    X_{t+1} = X_t + eps_t,  eps_t ~ N(0, Σ) with Σ = D R D.
+    """
+    noise: CorrelatedGaussianNoiseRd
+
+    def law(self, x: PointRd) -> CorrelatedGaussianNoiseRd:
+        return CorrelatedGaussianNoiseRd(base=self.noise, shift=x)
 
 # ---------- Keys (for canonicalization/dedup in the AST (Abstract Syntax Tree)) ----------
 
