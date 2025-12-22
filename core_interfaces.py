@@ -229,16 +229,6 @@ class RandomWalkKernelRd(MarkovKernel[PointRd]):
 
     def law(self, x: PointRd) -> Sampler[PointRd]:
         return NormalRd(mean=x, std=self.step_std)
-    
-def estimate_prob(law: Sampler[X], event: Event[X], n: int, rng: random.Random) -> float:
-    # Draws n samples from law.
-    # Counts how many fall in the event.
-    # Returns the empirical frequency, an estimate of P(X \in event)
-    hits = 0
-    for _ in range(n):
-        if event(law.sample(rng)):
-            hits += 1
-    return hits / n
 
 # ---------- Keys (for canonicalization/dedup in the AST (Abstract Syntax Tree)) ----------
 
