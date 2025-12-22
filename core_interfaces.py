@@ -601,6 +601,10 @@ def generate_event_family(
     e.g. catching problems like non-negativity of a measure, or being a probability measure.
     borel sets are the canonical measurable sets for polish spaces (which the state spaces are)
     """
+    
+    # TODO: shouldn't we use half open balls as these can create the open topology? does this better or worsen computational feasibility?
+        # what theorems said half open balls could do this again?
+    
     known: dict[tuple, Event[X]] = {}
 
     def add(ev: Event[X]) -> None:
