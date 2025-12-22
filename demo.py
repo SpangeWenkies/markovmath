@@ -5,7 +5,9 @@ from core_interfaces import (
     generate_event_family,
     MarkovProcess,
     NormalRd,
-    RandomWalkKernelRd,
+    # RandomWalkKernelRd,
+    CorrelatedGaussianNoiseRd,
+    DriftingCorrelatedGaussianRandomWalkKernelRd,
 )
 from contract_checks import (
     check_metric_contract,
@@ -27,6 +29,13 @@ if __name__ == "__main__":
     init_std = 1.0
     n_steps = 200
     max_depth = 3
+    stds = (0.5, 0.2, 1.0)
+    corr = (
+        (1.0, 0.3, -0.1),
+        (0.3, 1.0, 0.25),
+        (-0.1, 0.25, 1.0),
+    )
+    shift = 0.2
 
     # initial point
     origin: PointRd = tuple(0.0 for _ in range(d))
@@ -67,10 +76,18 @@ if __name__ == "__main__":
     fam = generate_event_family(gens, max_depth=max_depth)
     print(f"Generated {len(fam)} events (R^{d}, p={p}, depth={max_depth}).")
 
-    # Random walk in R^d
+    base = CorrelatedGaussianNoiseRd(stds=stds, corr=corr)
+
+    drift_scalar = 0.2
+    drift = tuple(drift_scalar for _ in range(d))   # or any vector of length d
+
+    kernel = DriftingCorrelatedGaussianRandomWalkKernelRd(noise=base, drift=drift)
+
+
+    # Correlated Random walk in R^d
     mp = MarkovProcess(
-        init=NormalRd(mean=origin, std=init_std),
-        kernel=RandomWalkKernelRd(step_std=step_std),
+        init=NormalRd(mean=origin, std=1.0),  # still ok as init
+        kernel=kernel,
     )
     path = mp.sample_path(n_steps, rng=rng)
 

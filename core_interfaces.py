@@ -326,14 +326,25 @@ class ShiftedCorrelatedGaussianNoiseRd:
         return tuple(self.shift[i] + eps[i] for i in range(len(eps)))
 
 @dataclass(frozen=True, slots=True)
-class CorrelatedGaussianRandomWalkKernelRd:
+class DriftingCorrelatedGaussianRandomWalkKernelRd:
     """
-    X_{t+1} = X_t + eps_t,  eps_t ~ N(0, Σ) with Σ = D R D.
+    X_{t+1} = X_t + drift + eps_t,  eps_t ~ N(0, Σ).
+    So: X_{t+1} | X_t=x ~ N(x + drift, Σ).
     """
-    noise: CorrelatedGaussianNoiseRd
+    
+    # TODO: change constant drift to possible state-dependent drift (for e.g. mean reversion)
+    # If you want state dependent drift, we could store drift in Callable[[PointRd], PointRd] 
+    # and compute shift = x + drift(x) in law.
+    
+    noise: CorrelatedGaussianNoiseRd   # mean-zero correlated noise
+    drift: PointRd                     # mean increment per step (μ)
 
-    def law(self, x: PointRd) -> CorrelatedGaussianNoiseRd:
-        return CorrelatedGaussianNoiseRd(base=self.noise, shift=x)
+    def law(self, x: PointRd) -> ShiftedCorrelatedGaussianNoiseRd:
+        if len(x) != len(self.drift):
+            raise ValueError("dimension mismatch: x vs drift")
+        shift = tuple(xi + di for xi, di in zip(x, self.drift))
+        return ShiftedCorrelatedGaussianNoiseRd(base=self.noise, shift=shift)
+
 
 # ---------- Keys (for canonicalization/dedup in the AST (Abstract Syntax Tree)) ----------
 
