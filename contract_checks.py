@@ -3,7 +3,19 @@ from dataclasses import dataclass
 from typing import Protocol, TypeVar, Generic, Callable, runtime_checkable
 import random
 import math
-from core_interfaces import MetricSpace, Sampler, X, Event, E, MarkovKernel, MeasurableSpace, Measure, event_key, Union, Complement
+from core_interfaces import (
+    MetricSpace, 
+    Sampler, 
+    X, 
+    Event, 
+    E, 
+    MarkovKernel, 
+    MeasurableSpace, 
+    Measure, 
+    event_key, 
+    Union, 
+    Complement,
+)
 
 def estimate_prob(law: Sampler[X], event: Event[X], n: int, rng: random.Random) -> float:
     # Draws n samples from law.
@@ -208,6 +220,8 @@ def check_event_probabilities_monotonicity_additivity(
     fam,
     origin,
     rng,
+    gens,
+    borel,
     mc_n=10_000, # samples per probability estimate (tune up/down)
     tol_prob = 0.07,
     subset_trials = 30,
@@ -216,12 +230,15 @@ def check_event_probabilities_monotonicity_additivity(
     disjoint_n = 3000,
 ) -> None:
 
+    events = [borel.whole(), borel.empty(), *gens]
+    events += rng.sample(fam, k=min(40 - len(events), len(fam)))
+
     probs_init = []
     probs_one_step = []
 
     law1 = mp.kernel.law(origin)
 
-    for i, A in enumerate(fam):
+    for i, A in enumerate(events):
         # separate RNG streams per event so estimates are reproducible and comparable.
         pA_init = estimate_prob(mp.init, A, mc_n, rng=random.Random(10_000 + i))
         pA_1    = estimate_prob(law1,   A, mc_n, rng=random.Random(20_000 + i))
@@ -257,8 +274,8 @@ def check_event_probabilities_monotonicity_additivity(
 
     print("\nHeuristic monotonicity checks (under init law):")
     for k in range(subset_trials):
-        A = rng.choice(fam) # Axiom of choice used?
-        B = rng.choice(fam)
+        A = rng.choice(events)
+        B = rng.choice(events)
         if approx_subset(A, B, sampler=mp.init, rng=random.Random(30_000 + k), n=subset_n):
             if p_init_map[A] > p_init_map[B] + tol_prob:
                 print("  WARNING: monotonicity suspect")
@@ -268,8 +285,8 @@ def check_event_probabilities_monotonicity_additivity(
 
     print("\nHeuristic additivity checks on disjoint pairs (under init law):")
     for k in range(disjoint_trials):
-        A = rng.choice(fam)
-        B = rng.choice(fam)
+        A = rng.choice(events)
+        B = rng.choice(events)
         if approx_disjoint(A, B, sampler=mp.init, rng=random.Random(40_000 + k), n=disjoint_n):
             union_event = Union((A, B))
             p_union = estimate_prob(mp.init, union_event, mc_n, rng=random.Random(50_000 + k))

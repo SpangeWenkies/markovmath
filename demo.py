@@ -9,7 +9,7 @@ from core_interfaces import (
 )
 from contract_checks import (
     check_metric_contract,
-    check_kernel_contracts,
+    # check_kernel_contracts,
     check_event_probabilities_monotonicity_additivity,
 )
 import seaborn as sns
@@ -100,6 +100,8 @@ if __name__ == "__main__":
         fam = fam,
         origin = origin,
         rng = rng,
+        gens = gens,
+        borel = borel,
         tol_prob = 0.07,
         subset_trials = 30,
         disjoint_trials = 30,
