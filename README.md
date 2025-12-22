@@ -1,6 +1,6 @@
 # MarkovMath — A formal mathematics toolkit for Markov processes on general state spaces (with differentiable extensions)
 
-MarkovMath is a research-oriented codebase for expressing and testing core objects from **probability on general state spaces** in a way that is:
+MarkovMath is a research-oriented codebase in python for expressing and testing core objects from **probability on general state spaces** in a way that is:
 
 * **explicit** about the underlying mathematical structures (state space, σ-algebra, measures, kernels),
 * **composable** (build processes from kernels, build measurable sets from generators),
@@ -8,6 +8,8 @@ MarkovMath is a research-oriented codebase for expressing and testing core objec
 * and extensible toward **differentiable algorithms** (gradients of expectations through stochastic dynamics).
 
 The long-term goal is to provide a clean “mathematical backbone” you can use to implement and verify constructions from modern Markov process theory, Dirichlet form theory, and potential theory.
+
+Python being OOP might not be ideal. Future Rust or C++ implementation might be coming later.
 
 ---
 
