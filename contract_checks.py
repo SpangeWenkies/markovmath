@@ -370,6 +370,8 @@ def check_discrete_resolvent_identity(
       - This is a nested Monte Carlo check, which sadly means variance can be high for unbounded f.
         Prefer bounded f (indicators, tanh, cos, clipped observables).
       - Passing the check provides confidence; failure indicates either a bug or insufficient sampling.
+      - If it’s slow, reduce n_states first, then reduce n_outer, then reduce n_paths_inner. 
+        - If it fails sporadically, increase those (or loosen tol) or use bounded f
     """
     lam = resolvent.lam
     for i in range(n_states):

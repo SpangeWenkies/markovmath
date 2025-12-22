@@ -127,6 +127,10 @@ if __name__ == "__main__":
         mc_n=10_000,  # samples per probability estimate (tune up/down)
     )
 
+    # TODO: put the discrete semigroup and resolvent into demo
+    
+    # TODO: put the discrete resolvent identity check into demo
+
     # note following plot has nothing to do with the generated events
 
     # Plot time vs point_i for i = 1,...,d (shown as x1..xd)
