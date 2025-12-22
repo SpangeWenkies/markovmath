@@ -1,6 +1,7 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Protocol, TypeVar, Generic, Callable, runtime_checkable, TypeAlias, Any
+from dataclasses import dataclass, field
+from typing import (Protocol, TypeVar, Generic, Callable, runtime_checkable, TypeAlias, Any, Tuple,)
+from helper_funcs import (cov_from_stds_and_corr, cholesky_spd,)
 import random
 import math
 
@@ -229,6 +230,34 @@ class RandomWalkKernelRd(MarkovKernel[PointRd]):
 
     def law(self, x: PointRd) -> Sampler[PointRd]:
         return NormalRd(mean=x, std=self.step_std)
+    
+@dataclass(frozen=True, slots=True)
+class CorrelatedGaussianNoiseRd:
+    """
+    Samples eps ~ N(0, Σ) on R^d where Σ = D R D (stds + corr).
+    """
+    stds: PointRd
+    corr: Tuple[Tuple[float, ...], ...]
+    _chol: Tuple[Tuple[float, ...], ...] = field(init=False, repr=False)
+
+    def __post_init__(self):
+        corr_list = [list(row) for row in self.corr]
+        cov = cov_from_stds_and_corr(self.stds, corr_list)
+        L = cholesky_spd(cov)
+        object.__setattr__(self, "_chol", tuple(tuple(row) for row in L))
+
+    def sample(self, rng: random.Random) -> PointRd:
+        d = len(self.stds)
+        z = [rng.gauss(0.0, 1.0) for _ in range(d)]  # iid N(0,1)
+        y = [0.0] * d
+        # y = L z
+        for i in range(d):
+            s = 0.0
+            Li = self._chol[i]
+            for j in range(i + 1):
+                s += Li[j] * z[j]
+            y[i] = s
+        return tuple(y)
 
 # ---------- Keys (for canonicalization/dedup in the AST (Abstract Syntax Tree)) ----------
 
