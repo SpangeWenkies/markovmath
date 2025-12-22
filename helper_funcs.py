@@ -3,6 +3,7 @@ import math
 
 Point = tuple[float, ...]
 
+
 def _validate_corr_matrix(corr: List[List[float]], tol: float = 1e-12) -> None:
     d = len(corr)
     if d == 0 or any(len(row) != d for row in corr):
@@ -56,7 +57,9 @@ def cholesky_spd(a: List[List[float]], tol: float = 1e-12) -> List[List[float]]:
                 s -= L[i][k] * L[j][k]
             if i == j:
                 if s <= tol:
-                    raise ValueError("matrix not SPD (nonpositive pivot); check corr/stds")
+                    raise ValueError(
+                        "matrix not SPD (nonpositive pivot); check corr/stds"
+                    )
                 L[i][j] = math.sqrt(s)
             else:
                 L[i][j] = s / L[j][j]

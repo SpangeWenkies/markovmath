@@ -1,12 +1,24 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import (Protocol, TypeVar, Generic, Callable, runtime_checkable, TypeAlias, Any, Tuple,)
-from helper_funcs import (cov_from_stds_and_corr, cholesky_spd,)
+from typing import (
+    Protocol,
+    TypeVar,
+    Generic,
+    Callable,
+    runtime_checkable,
+    TypeAlias,
+    Any,
+    Tuple,
+)
+from helper_funcs import (
+    cov_from_stds_and_corr,
+    cholesky_spd,
+)
 import random
 import math
 
-X = TypeVar("X")   # element / point
-E = TypeVar("E")   # event representation
+X = TypeVar("X")  # element / point
+E = TypeVar("E")  # event representation
 
 # in R^d do not use np.array as these are not hashable, do Point = tuple[float, ...] of length d
 PointRd: TypeAlias = tuple[float, ...]
@@ -18,22 +30,26 @@ PointRd: TypeAlias = tuple[float, ...]
 # we use a Protocol to be a contract describing required methods on a class
 
 # How one can deal with axioms involving \forall or \exists in formal mathematics put into code is one of the following 4 ways:
-    # Restricted representations where laws are checkable
-        # e.g. finite state spaces: events are bitsets; probabilities are sums.
-    # Runtime tests / property-based tests
-        # e.g. Check triangle inequality for random samples.
-    # Type-level discipline + documentation
-        # “This must satisfy X.”
-    # External proof assistants (Lean/Coq) if you want actual proof-level enforcement.
+# Restricted representations where laws are checkable
+# e.g. finite state spaces: events are bitsets; probabilities are sums.
+# Runtime tests / property-based tests
+# e.g. Check triangle inequality for random samples.
+# Type-level discipline + documentation
+# “This must satisfy X.”
+# External proof assistants (Lean/Coq) if you want actual proof-level enforcement.
+
 
 @runtime_checkable  # needed for working with isinstance() with protocols
 class Event(Protocol[X]):
     # in our model an event is just anything callable
     # later on events can become structured events like Union((A, B)), Complement(A), OpenBall(center, radius, metric)
-        # of those we can check what they are built from by methods .parts (or .a in complement case)
+    # of those we can check what they are built from by methods .parts (or .a in complement case)
     # other events are opaque, i.e., they are "black-boxes" represented by (lambda) functions
-        # these can be evaluated but not algebraically manipulated
-    def __call__(self, x: X) -> bool: ...   # ellipsis literal to state the method is not implimented but signature matters here
+    # these can be evaluated but not algebraically manipulated
+    def __call__(
+        self, x: X
+    ) -> bool: ...  # ellipsis literal to state the method is not implimented but signature matters here
+
 
 @dataclass(frozen=True, slots=True)
 class WholeEvent(Generic[X]):
@@ -41,11 +57,13 @@ class WholeEvent(Generic[X]):
     def __call__(self, x: X) -> bool:
         return True
 
+
 @dataclass(frozen=True, slots=True)
 class EmptyEvent(Generic[X]):
     # represents the empty event set
     def __call__(self, x: X) -> bool:
         return False
+
 
 @dataclass(frozen=True, slots=True)
 class NamedEvent(Generic[X]):
@@ -53,14 +71,17 @@ class NamedEvent(Generic[X]):
     Wrap an arbitrary predicate with a stable identity (name).
     Helpful if you want simplification/dedup to treat two occurrences as the same event.
     """
+
     name: str
     pred: Callable[[X], bool]
 
     def __call__(self, x: X) -> bool:
         return self.pred(x)
 
+
 class Space(Protocol[X]):
     """Underlying set of points (plus whatever structure you choose)."""
+
     # usually no methods needed; it’s a tag/interface
 
 
@@ -74,42 +95,52 @@ class MetricSpace(Protocol[X]):
 
 class MeasurableSpace(Protocol[X, E]):
     """(X, Σ) where Σ is represented by the type E."""
+
     # we cannot implement the closure of a sigma algebra as it may have infinitely many elements, we can define the following:
-    def whole(self) -> E: ...   # produce event for the whole space
-    def empty(self) -> E: ...   # produce event for the empty space
+    def whole(self) -> E: ...  # produce event for the whole space
+    def empty(self) -> E: ...  # produce event for the empty space
 
 
 class Measure(Protocol[X, E]):
     """μ: Σ -> [0, +∞]."""
+
     # A measure must be countably additive. You cannot enforce “for every countable disjoint sequence of sets”.
     # TODO: insert measure axioms in comment or error message
-    def measure(self, event: E) -> float: ...   # here is the function for the actual mapping the measure does and must be non-neg. target
+    def measure(
+        self, event: E
+    ) -> float: ...  # here is the function for the actual mapping the measure does and must be non-neg. target
 
 
 class Sampler(Protocol[X]):
     """Sampling capability."""
+
     # generate random samples of type X
     def sample(self, rng: random.Random) -> X: ...
 
 
 class ProbabilityMeasure(Measure[X, E], Sampler[X], Protocol[X, E]):
     """Probability measure: total mass 1 (by contract)."""
-    # in general, many probability measures we can sample from don’t let us compute exact measure(event) for arbitrary events; 
+
+    # in general, many probability measures we can sample from don’t let us compute exact measure(event) for arbitrary events;
     # this protocol assumes you can do both, but we could split it if needed.
     # helpers can be added here
 
+
 class MarkovKernel(Protocol[X]):
     """K(x, ·) returns an evolution law for the next state given current x."""
+
     def law(self, x: X) -> Sampler[X]: ...
 
 
 @dataclass
 class MarkovProcess(Generic[X]):
-    init: Sampler[X]    # initial distribution
-    kernel: MarkovKernel[X] # transition kernel that has an evolution law function
+    init: Sampler[X]  # initial distribution
+    kernel: MarkovKernel[X]  # transition kernel that has an evolution law function
 
     def sample_path(self, n: int, rng: random.Random | None = None) -> list[X]:
-        rng = rng or random.Random() #If rng not provided, create a new RNG (non-reproducible unless seed is set)
+        rng = (
+            rng or random.Random()
+        )  # If rng not provided, create a new RNG (non-reproducible unless seed is set)
         path: list[X] = []
         x = self.init.sample(rng)
         path.append(x)
@@ -117,6 +148,7 @@ class MarkovProcess(Generic[X]):
             x = self.kernel.law(x).sample(rng)
             path.append(x)
         return path
+
 
 @dataclass(frozen=True, slots=True)
 class StdBorelSpaceRd(MeasurableSpace[PointRd, Event[PointRd]]):
@@ -126,6 +158,7 @@ class StdBorelSpaceRd(MeasurableSpace[PointRd, Event[PointRd]]):
     metric: the L^p metric chosen by the user (p-norm). On finite-dimensional R^d,
             any L^p norm induces the standard topology, hence the standard Borel σ-algebra.
     """
+
     metric: MetricSpace[PointRd]
     is_polish: bool = True  # contract/metadata
 
@@ -137,6 +170,7 @@ class StdBorelSpaceRd(MeasurableSpace[PointRd, Event[PointRd]]):
 
     def ball(self, center: PointRd, radius: float) -> Event[PointRd]:
         return OpenBall(center=center, radius=radius, metric=self.metric)
+
 
 @dataclass(frozen=True, slots=True)
 class OpenBall(Generic[X]):
@@ -153,28 +187,36 @@ class OpenBall(Generic[X]):
 @dataclass(frozen=True, slots=True)
 class Complement(Generic[X]):
     a: Event[X]
+
     def __call__(self, x: X) -> bool:
         return not self.a(x)
 
+
 # finite union and finite intersection together with the open balls can create a computable part of the sigma-algebra
 # note that we can't do countable as that can reach infinity
+
 
 @dataclass(frozen=True, slots=True)
 class Union(Generic[X]):
     # finite union
     parts: tuple[Event[X], ...]
+
     def __call__(self, x: X) -> bool:
         return any(p(x) for p in self.parts)
+
 
 @dataclass(frozen=True, slots=True)
 class Intersection(Generic[X]):
     # finite intersection
     parts: tuple[Event[X], ...]
+
     def __call__(self, x: X) -> bool:
         return all(p(x) for p in self.parts)
-    
+
+
 # For now we only implement the Lp-norms as these introduce the standard topology on R^d
 # TODO: extend to use other norms that induce other topologies
+
 
 @dataclass(frozen=True, slots=True)
 class LpMetricRd(MetricSpace[PointRd]):
@@ -183,6 +225,7 @@ class LpMetricRd(MetricSpace[PointRd]):
       - p >= 1: (sum |xi-yi|^p)^(1/p)
       - p = inf: max_i |xi-yi| (this is the supremum norm)
     """
+
     p: float  # use math.inf for p = infinity
 
     def dist(self, a: PointRd, b: PointRd) -> float:
@@ -197,25 +240,31 @@ class LpMetricRd(MetricSpace[PointRd]):
             s += abs(ai - bi) ** self.p
         return s ** (1.0 / self.p)
 
+
 @dataclass(frozen=True)
 class Normal(Sampler[float]):
     # makes the sampler a gaussian sampler
     mean: float
     std: float
+
     def sample(self, rng: random.Random) -> float:
         return rng.gauss(self.mean, self.std)
+
 
 @dataclass(frozen=True)
 class RandomWalkKernel(MarkovKernel[float]):
     # makes a transition kernel one that uses a gaussian random walk
     # given current state x, the next state is normal(x,step_std)
     step_std: float
+
     def law(self, x: float) -> Sampler[float]:
         return Normal(mean=x, std=self.step_std)
-    
+
+
 @dataclass(frozen=True, slots=True)
 class NormalRd(Sampler[PointRd]):
     """N(mean, std^2 I) on R^d (independent coordinates)."""
+
     mean: PointRd
     std: float
 
@@ -226,16 +275,19 @@ class NormalRd(Sampler[PointRd]):
 @dataclass(frozen=True, slots=True)
 class RandomWalkKernelRd(MarkovKernel[PointRd]):
     """X_{t+1} = X_t + N(0, step_std^2 I)."""
+
     step_std: float
 
     def law(self, x: PointRd) -> Sampler[PointRd]:
         return NormalRd(mean=x, std=self.step_std)
-    
+
+
 @dataclass(frozen=True, slots=True)
 class CorrelatedGaussianNoiseRd:
     """
     Samples eps ~ N(0, Σ) on R^d where Σ = D R D (stds + corr).
     """
+
     stds: PointRd
     corr: Tuple[Tuple[float, ...], ...]
     _chol: Tuple[Tuple[float, ...], ...] = field(init=False, repr=False)
@@ -259,7 +311,9 @@ class CorrelatedGaussianNoiseRd:
             y[i] = s
         return tuple(y)
 
+
 # ---------- Keys (for canonicalization/dedup in the AST (Abstract Syntax Tree)) ----------
+
 
 def _round_float(v: float, ndigits: int = 12) -> float:
     return float(round(v, ndigits))
@@ -267,15 +321,16 @@ def _round_float(v: float, ndigits: int = 12) -> float:
 
 def _round_point(p: Any, ndigits: int = 12) -> Any:
     # For R^d points represented as tuple[float, ...], round each coordinate.
-    # We do this to prevent that balls where just one dimension is slightly off but produces almost the same ball 
+    # We do this to prevent that balls where just one dimension is slightly off but produces almost the same ball
     # will be seen as duplicate by the simplifier
     # This might break mathematical logic, but this is needed for computational feasibility of higher dimensions due to blow up
-    # TODO: there are other ways to solve this problem, 
-        # e.g. not using open balls for generating, but axis-algined open boxes tuning radii per coordinate or half spaces or a mix of all three
-        # this is as open balls can become increasingly rare under some of the common distributions
+    # TODO: there are other ways to solve this problem,
+    # e.g. not using open balls for generating, but axis-algined open boxes tuning radii per coordinate or half spaces or a mix of all three
+    # this is as open balls can become increasingly rare under some of the common distributions
     if isinstance(p, tuple) and all(isinstance(x, (int, float)) for x in p):
         return tuple(_round_float(float(x), ndigits) for x in p)
     return p
+
 
 def metric_key(m: object) -> str:
     # include p for LpMetricRd to distinguish L1 vs L2 vs ... vs supnorm
@@ -300,7 +355,12 @@ def event_key(ev: Event[X]) -> tuple:
     if isinstance(ev, NamedEvent):
         return ("Named", ev.name)
     if isinstance(ev, OpenBall):
-        return ("Ball", repr(_round_point(ev.center)), _round_float(ev.radius), metric_key(ev.metric))
+        return (
+            "Ball",
+            repr(_round_point(ev.center)),
+            _round_float(ev.radius),
+            metric_key(ev.metric),
+        )
     if isinstance(ev, Complement):
         return ("Not", event_key(ev.a))
     if isinstance(ev, Union):
@@ -322,12 +382,17 @@ def is_complement_pair(a: Event[X], b: Event[X]) -> bool:
     kb = event_key(b)
     return kb == ("Not", ka) or ka == ("Not", kb)
 
+
 # ---------- Simplification (only for nodes we can recognize as distinct) ----------
+
 
 def simplify_event(ev: Event[X]) -> Event[X]:
     # Leaves / opaque events: keep as-is
     # i.e., if it encounters an unknown/opaque event (like a lambda), these are not AST nodes, and thus it treats it as an atomic leaf
-    if not isinstance(ev, (WholeEvent, EmptyEvent, NamedEvent, OpenBall, Complement, Union, Intersection)):
+    if not isinstance(
+        ev,
+        (WholeEvent, EmptyEvent, NamedEvent, OpenBall, Complement, Union, Intersection),
+    ):
         return ev
 
     # Leaves
@@ -335,29 +400,29 @@ def simplify_event(ev: Event[X]) -> Event[X]:
         return ev
 
     # we can only do the following rules if we keep in mind that rules like A ∪ ¬A = X only reliably trigger when:
-            # ¬A is literally Complement(A) referring to the same A object (or something with the same structural key)
-            # for opaque lambdas, there’s no structural equality beyond object identity right now
+    # ¬A is literally Complement(A) referring to the same A object (or something with the same structural key)
+    # for opaque lambdas, there’s no structural equality beyond object identity right now
     # i.e., A ∪ ¬A = X is
-        # reliable:
-            # A = OpenBall(0.0, 1.0, metric)
-            # expr = Union((A, Complement(A))) will evaluate to whole
-            # Complement(A).a is A
-        # not reliable: 
-            # A1 = lambda x: x > 0
-            # A2 = lambda x: x > 0
-            # logically same set, different function object
-            # expr = Union((A1, Complement(A2))) will NOT evaluate to whole as A1 = A2 -> False
-    
-    # TODO: If we want stronger dedup for arbitrary predicates there are 3 things we can do:
-        # wrap these predicates / opaques in a “named” event
-            # the event_key will then be able to use the structural key / canonical form of the objects to identify if they are the same
-        # only use AST nodes for every sigma algebra we want to build
-            # events are then just compared by structural key
-        # normal forms / hashing
-            # we could hash function bytecode, source text, closure variables, etc.—but it’s hard and could be unsafe
-            # we then do not really have mathematical equality if it executes unsafely
+    # reliable:
+    # A = OpenBall(0.0, 1.0, metric)
+    # expr = Union((A, Complement(A))) will evaluate to whole
+    # Complement(A).a is A
+    # not reliable:
+    # A1 = lambda x: x > 0
+    # A2 = lambda x: x > 0
+    # logically same set, different function object
+    # expr = Union((A1, Complement(A2))) will NOT evaluate to whole as A1 = A2 -> False
 
-        # Complement rules + De Morgan when visible
+    # TODO: If we want stronger dedup for arbitrary predicates there are 3 things we can do:
+    # wrap these predicates / opaques in a “named” event
+    # the event_key will then be able to use the structural key / canonical form of the objects to identify if they are the same
+    # only use AST nodes for every sigma algebra we want to build
+    # events are then just compared by structural key
+    # normal forms / hashing
+    # we could hash function bytecode, source text, closure variables, etc.—but it’s hard and could be unsafe
+    # we then do not really have mathematical equality if it executes unsafely
+
+    # Complement rules + De Morgan when visible
     if isinstance(ev, Complement):
         a = simplify_event(ev.a)
 
@@ -486,18 +551,19 @@ def simplify_event(ev: Event[X]) -> Event[X]:
 
     return ev  # should be unreachable
 
+
 def generate_event_family(
     generators: list[Event[X]],
     *,
     # max_depth = 0 gives generators and whole and empty when solely AST generators
-    # max_depth = 1 gives complements of generators and unions/intersections of pairs of generators 
+    # max_depth = 1 gives complements of generators and unions/intersections of pairs of generators
     # max_depth = 2 gives form depth 1 the complement of a union, union of intersections, intersection involving a complement of a union, etc.
-    max_depth: int = 2, 
+    max_depth: int = 2,
 ) -> list[Event[X]]:
     """
     construct a finite closure by generators under Complement/Union/Intersection up to some depth,
     simplifying for computation efficiency and making sure there are no duplicates in the event set along the way.
-    this generated event set is a stable test suite for contracts, 
+    this generated event set is a stable test suite for contracts,
     e.g. catching problems like non-negativity of a measure, or being a probability measure.
     borel sets are the canonical measurable sets for polish spaces (which the state spaces are)
     """
@@ -539,4 +605,3 @@ def generate_event_family(
     out = list(known.values())
     out.sort(key=event_key)
     return out
-

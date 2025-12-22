@@ -1,10 +1,10 @@
 from core_interfaces import (
-    PointRd, 
-    LpMetricRd, 
-    StdBorelSpaceRd, 
-    generate_event_family, 
-    MarkovProcess, 
-    NormalRd, 
+    PointRd,
+    LpMetricRd,
+    StdBorelSpaceRd,
+    generate_event_family,
+    MarkovProcess,
+    NormalRd,
     RandomWalkKernelRd,
 )
 from contract_checks import (
@@ -21,8 +21,8 @@ if __name__ == "__main__":
     rng = random.Random(0)
 
     # --- Demo parameters (edit these) ---
-    d = 3   # dimension of R^d
-    p = 2.0 # set to 1<=p<=math.inf (math.inf for supremum norm) (for this range Minkowski inequality holds)
+    d = 3  # dimension of R^d
+    p = 2.0  # set to 1<=p<=math.inf (math.inf for supremum norm) (for this range Minkowski inequality holds)
     step_std = 0.5
     init_std = 1.0
     n_steps = 200
@@ -41,7 +41,7 @@ if __name__ == "__main__":
         borel.ball(center=tuple(0.6 for _ in range(d)), radius=1.1 * math.sqrt(d)),
         borel.ball(center=tuple(-0.6 for _ in range(d)), radius=1.1 * math.sqrt(d)),
     ]
-    
+
     # metric contract inputs
     n_pairs = 200
     n_triples = 200
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     # z_kernel =
 
     # kernel contract check functions f: R^d -> R, that do not blow up in variance in R^d
-        # if using variance blow up test functions we must increase n_inner
+    # if using variance blow up test functions we must increase n_inner
     # test_functions = [
     #     lambda x: x[0],
     #     lambda x: math.tanh(x[0]),  # does not blow up as is bounded and smooth
@@ -96,18 +96,18 @@ if __name__ == "__main__":
     # print("Kernel contract check: OK (heuristic).")
 
     check_event_probabilities_monotonicity_additivity(
-        mp = mp,
-        fam = fam,
-        origin = origin,
-        rng = rng,
-        gens = gens,
-        borel = borel,
-        tol_prob = 0.07,
-        subset_trials = 30,
-        disjoint_trials = 30,
-        subset_n = 3000,
-        disjoint_n = 3000,
-        mc_n = 10_000, # samples per probability estimate (tune up/down)
+        mp=mp,
+        fam=fam,
+        origin=origin,
+        rng=rng,
+        gens=gens,
+        borel=borel,
+        tol_prob=0.07,
+        subset_trials=30,
+        disjoint_trials=30,
+        subset_n=3000,
+        disjoint_n=3000,
+        mc_n=10_000,  # samples per probability estimate (tune up/down)
     )
 
     # note following plot has nothing to do with the generated events

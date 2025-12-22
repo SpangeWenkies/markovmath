@@ -4,20 +4,23 @@ from typing import Protocol, TypeVar, Generic, Callable, runtime_checkable
 import random
 import math
 from core_interfaces import (
-    MetricSpace, 
-    Sampler, 
-    X, 
-    Event, 
-    E, 
-    MarkovKernel, 
-    MeasurableSpace, 
-    Measure, 
-    event_key, 
-    Union, 
+    MetricSpace,
+    Sampler,
+    X,
+    Event,
+    E,
+    MarkovKernel,
+    MeasurableSpace,
+    Measure,
+    event_key,
+    Union,
     Complement,
 )
 
-def estimate_prob(law: Sampler[X], event: Event[X], n: int, rng: random.Random) -> float:
+
+def estimate_prob(
+    law: Sampler[X], event: Event[X], n: int, rng: random.Random
+) -> float:
     # Draws n samples from law.
     # Counts how many fall in the event.
     # Returns the empirical frequency, an estimate of P(X \in event)
@@ -26,6 +29,7 @@ def estimate_prob(law: Sampler[X], event: Event[X], n: int, rng: random.Random) 
         if event(law.sample(rng)):
             hits += 1
     return hits / n
+
 
 def check_metric_contract(
     metric: MetricSpace[X],
@@ -70,8 +74,9 @@ def check_metric_contract(
         dyz = metric.dist(y, z)
 
         assert dxz <= dxy + dyz + 1e-9, (
-            f"Triangle violated: d(x,z)={dxz} > d(x,y)+d(y,z)={dxy+dyz}"
+            f"Triangle violated: d(x,z)={dxz} > d(x,y)+d(y,z)={dxy + dyz}"
         )
+
 
 def approx_subset(
     A: Event[X],
@@ -129,7 +134,7 @@ def check_measure_contracts(
 
     # Assumes we know the measure as a function of an event. This is almost never the case.
     # In many cases we do not have exact μ(A), but we have it through sampling
-    # We then can have measure be a monte carlo wrapper implementing the .measure() by sampling, 
+    # We then can have measure be a monte carlo wrapper implementing the .measure() by sampling,
     # but we then must account in the contract checks for monte carlo noise
 
     # Empty set sanity
@@ -155,10 +160,13 @@ def check_measure_contracts(
                 if approx_subset(A, B, sampler=reference_sampler, rng=rng):
                     mA = mu.measure(A)
                     mB = mu.measure(B)
-                    assert mA <= mB + tol, f"Monotonicity suspect: μ(A)={mA} > μ(B)={mB}"
+                    assert mA <= mB + tol, (
+                        f"Monotonicity suspect: μ(A)={mA} > μ(B)={mB}"
+                    )
 
                 # If disjoint, check additivity with A∪B if you have a union constructor.
                 # The explicit Borel-event AST helps here because we can then build Union((A,B)) deterministically.
+
 
 def check_kernel_contracts(
     kernel: MarkovKernel[X],
@@ -168,8 +176,8 @@ def check_kernel_contracts(
     test_functions: list[Callable[[X], float]],
     n_states: int = 20,
     n_inner: int = 2000,
-    z: float = 4.0,          # how many standard errors you allow
-    min_se: float = 1e-12,   # avoid division by 0
+    z: float = 4.0,  # how many standard errors you allow
+    min_se: float = 1e-12,  # avoid division by 0
 ) -> None:
     # TODO: generalize this function to work for more than Random walk (we must create some rule for setting n_inner using se from a MC sample)
     for _ in range(n_states):
@@ -205,15 +213,17 @@ def check_kernel_contracts(
             diff = abs(m1 - m2)
             assert diff <= z * se, (
                 f"Kernel sanity check failed (diff too large): diff={diff}, "
-                f"allowed≈{z*se} (z={z}, se={se})"
+                f"allowed≈{z * se} (z={z}, se={se})"
             )
 
-# TODO: put the following checks in the contract_checks file 
+
+# TODO: put the following checks in the contract_checks file
 
 # Estimate probabilities of generated events under init and one-step laws
 # Beware: fam can explode. Cap to a manageable number for the demo by following:
-    # events = [borel.whole(), borel.empty(), *gens]
-    # events += rng.sample(fam, k=min(40 - len(events), len(fam)))
+# events = [borel.whole(), borel.empty(), *gens]
+# events += rng.sample(fam, k=min(40 - len(events), len(fam)))
+
 
 def check_event_probabilities_monotonicity_additivity(
     mp,
@@ -222,14 +232,13 @@ def check_event_probabilities_monotonicity_additivity(
     rng,
     gens,
     borel,
-    mc_n=10_000, # samples per probability estimate (tune up/down)
-    tol_prob = 0.07,
-    subset_trials = 30,
-    disjoint_trials = 30,
-    subset_n = 3000,
-    disjoint_n = 3000,
+    mc_n=10_000,  # samples per probability estimate (tune up/down)
+    tol_prob=0.07,
+    subset_trials=30,
+    disjoint_trials=30,
+    subset_n=3000,
+    disjoint_n=3000,
 ) -> None:
-
     events = [borel.whole(), borel.empty(), *gens]
     events += rng.sample(fam, k=min(40 - len(events), len(fam)))
 
@@ -241,7 +250,7 @@ def check_event_probabilities_monotonicity_additivity(
     for i, A in enumerate(events):
         # separate RNG streams per event so estimates are reproducible and comparable.
         pA_init = estimate_prob(mp.init, A, mc_n, rng=random.Random(10_000 + i))
-        pA_1    = estimate_prob(law1,   A, mc_n, rng=random.Random(20_000 + i))
+        pA_1 = estimate_prob(law1, A, mc_n, rng=random.Random(20_000 + i))
 
         probs_init.append((pA_init, A))
         probs_one_step.append((pA_1, A))
@@ -251,19 +260,27 @@ def check_event_probabilities_monotonicity_additivity(
 
     print("\nLowest-prob events under init:")
     for pA, A in probs_init[:5]:
-        print(f"  P_init≈{pA:.6g}  event={event_key(A) if 'event_key' in globals() else repr(A)}")
+        print(
+            f"  P_init≈{pA:.6g}  event={event_key(A) if 'event_key' in globals() else repr(A)}"
+        )
 
     print("\nHighest-prob events under init:")
     for pA, A in probs_init[-5:][::-1]:
-        print(f"  P_init≈{pA:.6g}  event={event_key(A) if 'event_key' in globals() else repr(A)}")
+        print(
+            f"  P_init≈{pA:.6g}  event={event_key(A) if 'event_key' in globals() else repr(A)}"
+        )
 
     print("\nLowest-prob events after 1 step from origin:")
     for pA, A in probs_one_step[:5]:
-        print(f"  P_1≈{pA:.6g}     event={event_key(A) if 'event_key' in globals() else repr(A)}")
+        print(
+            f"  P_1≈{pA:.6g}     event={event_key(A) if 'event_key' in globals() else repr(A)}"
+        )
 
     print("\nHighest-prob events after 1 step from origin:")
     for pA, A in probs_one_step[-5:][::-1]:
-        print(f"  P_1≈{pA:.6g}     event={event_key(A) if 'event_key' in globals() else repr(A)}")
+        print(
+            f"  P_1≈{pA:.6g}     event={event_key(A) if 'event_key' in globals() else repr(A)}"
+        )
 
     # “Measure-like” sanity checks using approx_subset / approx_disjoint
 
@@ -276,7 +293,9 @@ def check_event_probabilities_monotonicity_additivity(
     for k in range(subset_trials):
         A = rng.choice(events)
         B = rng.choice(events)
-        if approx_subset(A, B, sampler=mp.init, rng=random.Random(30_000 + k), n=subset_n):
+        if approx_subset(
+            A, B, sampler=mp.init, rng=random.Random(30_000 + k), n=subset_n
+        ):
             if p_init_map[A] > p_init_map[B] + tol_prob:
                 print("  WARNING: monotonicity suspect")
                 print(f"    P(A)≈{p_init_map[A]:.4f} > P(B)≈{p_init_map[B]:.4f}")
@@ -287,13 +306,19 @@ def check_event_probabilities_monotonicity_additivity(
     for k in range(disjoint_trials):
         A = rng.choice(events)
         B = rng.choice(events)
-        if approx_disjoint(A, B, sampler=mp.init, rng=random.Random(40_000 + k), n=disjoint_n):
+        if approx_disjoint(
+            A, B, sampler=mp.init, rng=random.Random(40_000 + k), n=disjoint_n
+        ):
             union_event = Union((A, B))
-            p_union = estimate_prob(mp.init, union_event, mc_n, rng=random.Random(50_000 + k))
+            p_union = estimate_prob(
+                mp.init, union_event, mc_n, rng=random.Random(50_000 + k)
+            )
             err = abs(p_union - (p_init_map[A] + p_init_map[B]))
             if err > tol_prob:
                 print("  WARNING: additivity suspect on approx-disjoint pair")
-                print(f"    P(A∪B)≈{p_union:.4f} vs P(A)+P(B)≈{(p_init_map[A]+p_init_map[B]):.4f} (err={err:.4f})")
+                print(
+                    f"    P(A∪B)≈{p_union:.4f} vs P(A)+P(B)≈{(p_init_map[A] + p_init_map[B]):.4f} (err={err:.4f})"
+                )
 
     # following monotonicity and additivity checks should be guaranteed to trigger by design
     A = rng.choice(fam)
@@ -309,4 +334,4 @@ def check_event_probabilities_monotonicity_additivity(
     # Guaranteed additivity for complement:
     Ac = Complement(A)
     pAc = estimate_prob(mp.init, Ac, mc_n, random.Random(3))
-    print(f"Complement additivity: P(A)+P(Ac)≈{pA+pAc:.4f} (should be ≈ 1)")
+    print(f"Complement additivity: P(A)+P(Ac)≈{pA + pAc:.4f} (should be ≈ 1)")
