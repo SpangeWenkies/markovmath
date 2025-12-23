@@ -14,6 +14,7 @@ from contract_checks import (
     # check_kernel_contracts,
     check_event_probabilities_monotonicity_additivity,
 )
+from operator_layer import DiscreteSemigroup, DiscreteResolvent, rd_key, indicator
 import seaborn as sns
 import pandas as pd
 import random
@@ -35,7 +36,6 @@ if __name__ == "__main__":
         (0.3, 1.0, 0.25),
         (-0.1, 0.25, 1.0),
     )
-    shift = 0.2
 
     # initial point
     origin: PointRd = tuple(0.0 for _ in range(d))
@@ -78,11 +78,10 @@ if __name__ == "__main__":
 
     base = CorrelatedGaussianNoiseRd(stds=stds, corr=corr)
 
-    drift_scalar = 0.2
-    drift = tuple(drift_scalar for _ in range(d))   # or any vector of length d
+    drift_scalar = 0
+    drift = tuple(drift_scalar for _ in range(d))  # or any vector of length d
 
     kernel = DriftingCorrelatedGaussianRandomWalkKernelRd(noise=base, drift=drift)
-
 
     # Correlated Random walk in R^d
     mp = MarkovProcess(
@@ -127,8 +126,19 @@ if __name__ == "__main__":
         mc_n=10_000,  # samples per probability estimate (tune up/down)
     )
 
-    # TODO: put the discrete semigroup and resolvent into demo
+    T = DiscreteSemigroup(mp.kernel, key_fn=rd_key, cache={})
+    U = DiscreteResolvent(mp.kernel, lam=0.95, key_fn=rd_key, cache={})
+
+    T_est = T.estimate_T(f=indicator(gens[0]), x0=origin, n_samples=1000, seed=12085278) # what was f_key here again should be a hashable
+    Tn_est = T.estimate_Tn(f=indicator(gens[0]), x0=origin, n=20, n_samples=1000, seed=12085278)
+    U_est = U.estimate_U(f=indicator(gens[0]), x0=origin, n_paths=1000, seed=12085278) # what is n_paths here again for?
+
+    print(f"The T^1 estimation with indicator function for the chosen gaussian kernel is: {T_est}")
+    print(f"The T^n estimation with indicator function for the chosen gaussian kernel is: {Tn_est}")
+    print(f"The U estimation with indicator function for the chosen gaussian kernel is: {U_est}")
     
+    # TODO: put the discrete semigroup and resolvent into demo
+
     # TODO: put the discrete resolvent identity check into demo
 
     # note following plot has nothing to do with the generated events
