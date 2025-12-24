@@ -41,6 +41,29 @@
     # the latter is a geometric sum as 0<\lambda<1
     # thus |Bias(K)| <= M (\lambda^{K+1}) / (\lambda - 1)
     
+# TODO's for semigroup and resolvent operator layer:
+    # we must look at more test functions that are usefull and what comes after getting the semigroups and resolvents from these, e.g.,
+        # oscillator function sin(x) or e^{i \xi x} usefull for fourier and spectral methods
+        # moment functions
+        # "energy"/growth functions like the squared norm ||.||^2
+        # mean type functions like f(x)=x and f(x)=<v,x>
+        # create some payoff functions f s.t. semigroup is a value function and the resolvent is the discounted total value 
+    # calculating the generator A such that we can use PDE and martingale tools, which way around? can we use P_t = e^{tA} or use limit?
+    # create continuous time versions
+        # do we use montecarlo integration?
+    # after we have generator A a function that finds the b and c in stability formula Af <= -cf + b
+    # Kolmogorov backward and forward???????
+    # can we find resolvent from A or other way around using static equations (\alpha I - A)R_{\alpha}f = f
+    # what can we do with that when we know A on a "rich" class of f then we get a function in A and f that is a Martingale
+    # note somewhere that we need for nice expectations that f are bounded, cont., smooth, of compact support
+    # note also then properties we want for P_t like positivity preservation, contraction, strong cont., invariant measure, Feller, Spectral gap
+    # for resolvents
+        # in cont time make stopping time tau \ sim Exp(\alpha) random stopping time
+        # in dicrete time make \lambda s.t. sum is truncated at geometric stopping time with probability of stopping each step being /lambda
+    # can we check chapman-kolmogorov heuristicly for a P_t?
+    
+
+    
 from dataclasses import dataclass    
 from typing import Callable, TypeVar, Hashable, Generic, Optional, MutableMapping
 import random
