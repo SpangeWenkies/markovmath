@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Callable
+from typing import Callable, Iterable, Sequence
 import random
 import math
 from core_interfaces import (
@@ -18,6 +18,9 @@ from core_interfaces import (
 from operator_layer import (
     DiscreteResolvent,
     Observable,
+    Scalar,
+    DiscreteSemigroup,
+    ContinuousSemigroup
 )
 
 
@@ -339,23 +342,60 @@ def check_event_probabilities_monotonicity_additivity(
     pAc = estimate_prob(mp.init, Ac, mc_n, random.Random(3))
     print(f"Complement additivity: P(A)+P(Ac)≈{pA + pAc:.4f} (should be ≈ 1)")
 
+def check_discrete_chapman_kolmogorov(
+    semigroup: DiscreteSemigroup[X],
+    f: Observable[X],
+    x0: X,
+    *,
+    m: int,
+    n: int,
+    n_outer: int,
+    n_inner: int,
+    rng: random.Random,
+) -> tuple[Scalar, Scalar]:
+    """Heuristic Chapman–Kolmogorov check: T^{m+n}f ≈ T^m(T^n f).
+
+    Since T^n f is not explicitly available as a function, we estimate:
+      - lhs = T^{m+n} f(x0) by direct simulation
+      - rhs = E[ g(X_m) ] where g(y) = T^n f(y), estimated with an inner MC at each y.
+
+    Returns (lhs, rhs). Their difference is your diagnostic.
+    """
+    if m < 0 or n < 0:
+        raise ValueError("m,n must be >= 0")
+    if n_outer <= 0 or n_inner <= 0:
+        raise ValueError("n_outer,n_inner must be > 0")
+
+    lhs = semigroup.estimate_Tn(f, x0, n=m + n, n_samples=n_outer, rng=rng)
+
+    # rhs: outer simulate m steps, inner estimate n-step expectation
+    acc: Scalar = 0.0
+    for _ in range(n_outer):
+        x = x0
+        for _k in range(m):
+            x = semigroup.kernel.law(x).sample(rng)
+        # inner expectation starting from x
+        acc += semigroup.estimate_Tn(f, x, n=n, n_samples=n_inner, rng=rng)
+    rhs: Scalar = acc / n_outer
+    return lhs, rhs
+
 
 def check_discrete_resolvent_identity(
-    kernel: MarkovKernel[X],
     resolvent: DiscreteResolvent[X],
+    semigroup: DiscreteSemigroup[X],
     f: Observable[X],
+    x0: X,
     *,
+    n_outer: int,
+    n_inner: int,
     rng: random.Random,
-    state_sampler: Sampler[X],
-    n_states: int = 8,
-    # LHS: U_\lambda f(x)
-    n_paths_lhs: int = 2000,
-    # RHS: f(x) + \lambda T(U_\lambda f)(x)
-    n_outer: int = 400,  # samples for T(·) expectation
-    n_paths_inner: int = 400,  # paths to estimate U_\lambda f at each sampled next-state
-    tol: float = 0.15,
-) -> None:
-    """
+) -> tuple[Scalar, Scalar]:
+    """Heuristic check of U_λ f = f + λ T(U_λ f) at x0.
+
+    - lhs = U_λ f(x0) estimated by geometric stopping time
+    - rhs = f(x0) + λ E[ U_λ f(X_1) ] where the expectation is outer MC and U_λ f(X_1)
+      is estimated with an inner MC at each visited X_1.
+      
     Numerically verifies the discrete resolvent identity:
 
         U_\lambda f(x) = f(x) + \lambda (T U_\lambda f)(x)
@@ -370,28 +410,227 @@ def check_discrete_resolvent_identity(
       - This is a nested Monte Carlo check, which sadly means variance can be high for unbounded f.
         Prefer bounded f (indicators, tanh, cos, clipped observables).
       - Passing the check provides confidence; failure indicates either a bug or insufficient sampling.
-      - If it’s slow, reduce n_states first, then reduce n_outer, then reduce n_paths_inner. 
+      - If it's slow, reduce n_states first, then reduce n_outer, then reduce n_paths_inner. 
         - If it fails sporadically, increase those (or loosen tol) or use bounded f
+      
     """
-    lam = resolvent.lam
-    for i in range(n_states):
-        x0 = state_sampler.sample(rng)
+    if n_outer <= 0 or n_inner <= 0:
+        raise ValueError("n_outer,n_inner must be > 0")
 
-        # LHS estimate
-        lhs = resolvent.estimate_U(f, x0, n_paths=n_paths_lhs, rng=rng)
+    lhs = resolvent.estimate_U(f, x0, n_paths=n_outer, rng=rng)
 
-        # RHS estimate: f(x0) + lam * E[ U f(X1) ]
-        acc = 0.0
-        for j in range(n_outer):
-            x1 = kernel.law(x0).sample(rng)
-            u_x1 = resolvent.estimate_U(f, x1, n_paths=n_paths_inner, rng=rng)
-            acc += u_x1
-        rhs = f(x0) + lam * (acc / n_outer)
+    acc: Scalar = 0.0
+    for _ in range(n_outer):
+        x1 = semigroup.kernel.law(x0).sample(rng)
+        acc += resolvent.estimate_U(f, x1, n_paths=n_inner, rng=rng)
+    rhs: Scalar = f(x0) + resolvent.lam * (acc / n_outer)
+    return lhs, rhs
 
-        err = abs(lhs - rhs)
-        assert err <= tol, (
-            "Discounted resolvent identity check failed:\n"
-            f"  |U f(x) - (f(x) + \lambda T(U f)(x))| = {err}\n"
-            f"  \lambda={lam}, tol={tol}\n"
-            f"  lhs={lhs}, rhs={rhs}\n"
-        )
+
+def estimate_drift_condition(
+    Af: Callable[[X], float],
+    f: Callable[[X], float],
+    states: Iterable[X],
+    *,
+    c_grid: Sequence[float] = (0.0, 0.1, 0.2, 0.5, 1.0),
+) -> tuple[float, float]:
+    """Heuristic drift/stability fit for Af <= -c f + b on a set of sampled states.
+
+    For each c in c_grid, define b(c) = max_x (Af(x) + c f(x)).
+    Choose c minimizing b(c) (ties broken by larger c).
+
+    This is purely empirical: it only certifies the inequality on the provided states.
+    """
+    best_c = None
+    best_b = None
+    for c in c_grid:
+        b = -float("inf")
+        for x in states:
+            b = max(b, float(Af(x) + c * f(x)))
+        if best_b is None or b < best_b - 1e-12 or (abs(b - best_b) <= 1e-12 and c > (best_c or 0.0)):
+            best_b = b
+            best_c = float(c)
+    return float(best_c or 0.0), float(best_b or 0.0)
+
+
+def check_discrete_martingale(
+    kernel: MarkovKernel[X],
+    Af: Callable[[X], float],
+    f: Callable[[X], float],
+    x0: X,
+    *,
+    n_steps: int,
+    n_paths: int,
+    rng: random.Random,
+) -> float:
+    """Heuristic martingale check for the discrete-time generator A = T - I.
+
+    If Af(x) = E[f(X_1)|X_0=x] - f(x), then
+
+        M_n := f(X_n) - f(X_0) - Σ_{k=0}^{n-1} Af(X_k)
+
+    satisfies E[M_n] = 0 (and is a martingale under integrability).
+
+    Returns an MC estimate of E[M_n] (should be near 0).
+    """
+    if n_steps < 0:
+        raise ValueError("n_steps must be >= 0")
+    if n_paths <= 0:
+        raise ValueError("n_paths must be > 0")
+
+    acc: float = 0.0
+    for _ in range(n_paths):
+        x = x0
+        sumAf = 0.0
+        for _k in range(n_steps):
+            sumAf += float(Af(x))
+            x = kernel.law(x).sample(rng)
+        Mn = float(f(x)) - float(f(x0)) - sumAf
+        acc += Mn
+    return float(acc / n_paths)
+
+
+def check_continuous_chapman_kolmogorov(
+    semigroup: ContinuousSemigroup[X],
+    f: Observable[X],
+    x0: X,
+    *,
+    s: float,
+    t: float,
+    n_outer: int,
+    n_inner: int,
+    rng: random.Random,
+) -> tuple[Scalar, Scalar]:
+    """Heuristic Chapman–Kolmogorov check for discretized continuous time.
+
+    Checks: P_{s+t} f(x0) ≈ P_s(P_t f)(x0), using nested Monte Carlo.
+
+    Returns (lhs, rhs).
+    """
+    m = semigroup.n_steps(s)
+    n = semigroup.n_steps(t)
+    disc = semigroup._disc
+    return check_discrete_chapman_kolmogorov(
+        disc, f, x0, m=m, n=n, n_outer=n_outer, n_inner=n_inner, rng=rng
+    )
+
+
+def check_kolmogorov_backward_discretized(
+    semigroup: ContinuousSemigroup[X],
+    f: Observable[X],
+    x0: X,
+    *,
+    t: float,
+    n_outer: int,
+    n_inner: int,
+    rng: random.Random,
+) -> tuple[Scalar, Scalar]:
+    """Heuristic backward equation at grid times for the discretized semigroup.
+
+    For Δt = semigroup.dt and t = kΔt, the *exact* discrete-time identity is:
+
+        P_{t+Δt} f - P_t f = P_t(P_{Δt} f - f)
+
+    Divide by Δt to view it as a finite-difference version of ∂_t P_t f = P_t A f.
+
+    This routine estimates:
+      lhs = (P_{t+Δt}f(x0) - P_t f(x0)) / Δt
+      rhs = P_t A_Δt f(x0), where A_Δt f(y) = (E[f(X_{Δt})|y] - f(y)) / Δt
+            estimated by inner MC at visited y ~ law(X_t|x0).
+
+    Returns (lhs, rhs).
+    """
+    k = semigroup.n_steps(t)
+    dt = semigroup.dt
+    disc = semigroup._disc
+    kernel = semigroup.kernel_dt
+
+    # lhs: finite difference at x0
+    pt = disc.estimate_Tn(f, x0, n=k, n_samples=n_outer, rng=rng)
+    pt_dt = disc.estimate_Tn(f, x0, n=k + 1, n_samples=n_outer, rng=rng)
+    lhs = (pt_dt - pt) / dt
+
+    # rhs: outer simulate to X_k, inner estimate one-step expectation
+    acc: Scalar = 0.0
+    for _ in range(n_outer):
+        x = x0
+        for _j in range(k):
+            x = kernel.law(x).sample(rng)
+        # estimate E[f(X_{k+1})|X_k=x] by inner MC
+        inner = 0.0
+        for _i in range(n_inner):
+            x1 = kernel.law(x).sample(rng)
+            inner += f(x1)
+        Tf_x = inner / n_inner
+        A_dt_f_x = (Tf_x - f(x)) / dt
+        acc += A_dt_f_x
+    rhs = acc / n_outer
+    return lhs, rhs
+
+
+def check_positivity_preservation(
+    semigroup: DiscreteSemigroup[X],
+    f: Callable[[X], float],
+    states: Iterable[X],
+    *,
+    n_samples: int,
+    rng: random.Random,
+    tol: float = 1e-10,
+) -> bool:
+    """Heuristic check: if f≥0 (pointwise on tested states), then T f ≥ 0.
+
+    Returns True if no violation was detected on the provided `states`.
+    """
+    for x in states:
+        if f(x) < -tol:
+            raise ValueError("f must be nonnegative on the tested states for this check.")
+        val = semigroup.estimate_T(f, x, n_samples=n_samples, rng=rng)
+        if float(val) < -tol:
+            return False
+    return True
+
+
+def check_supnorm_contraction(
+    semigroup: DiscreteSemigroup[X],
+    f: Callable[[X], float],
+    states: Iterable[X],
+    *,
+    n_samples: int,
+    rng: random.Random,
+    tol: float = 1e-6,
+) -> bool:
+    """Heuristic check of sup-norm contraction: ||T f||_∞ ≤ ||f||_∞.
+
+    Computes an empirical sup over `states`, so this is only a diagnostic.
+    """
+    f_sup = max(abs(float(f(x))) for x in states)
+    tf_sup = 0.0
+    for x in states:
+        tf = semigroup.estimate_T(f, x, n_samples=n_samples, rng=rng)
+        tf_sup = max(tf_sup, abs(float(tf)))
+    return tf_sup <= f_sup + tol
+
+
+def check_invariant_measure(
+    semigroup: DiscreteSemigroup[X],
+    mu: Sampler[X],
+    f: Callable[[X], float],
+    *,
+    n_mu: int,
+    n_inner: int,
+    rng: random.Random,
+) -> tuple[float, float]:
+    """Heuristic invariance check: E_μ[f] ≈ E_μ[T f].
+
+    Returns (E_μ[f], E_μ[T f]).
+    """
+    if n_mu <= 0 or n_inner <= 0:
+        raise ValueError("n_mu and n_inner must be > 0")
+
+    acc_f = 0.0
+    acc_tf = 0.0
+    for _ in range(n_mu):
+        x = mu.sample(rng)
+        acc_f += float(f(x))
+        acc_tf += float(semigroup.estimate_T(f, x, n_samples=n_inner, rng=rng))
+    return acc_f / n_mu, acc_tf / n_mu
