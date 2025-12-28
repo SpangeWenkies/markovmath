@@ -275,17 +275,17 @@ class DiscreteResolvent(Generic[X]):
         return est
 
 # -----------------------------
-# Test functions for R^d
+# Test functions with wrappers for R^d
 # -----------------------------
 
-def rd_coordinate(i: int) -> Observable[tuple[float, ...]]:
+def coordinate(i: int) -> Observable[tuple[float, ...]]:
     """f(x)=x_i"""
     def f(x: tuple[float, ...]) -> float:
         return float(x[i])
     return f
 
 
-def rd_linear(v: Sequence[float]) -> Observable[tuple[float, ...]]:
+def linear(v: Sequence[float]) -> Observable[tuple[float, ...]]:
     """f(x)=<v,x>"""
     v_ = [float(vi) for vi in v]
     def f(x: tuple[float, ...]) -> float:
@@ -293,7 +293,7 @@ def rd_linear(v: Sequence[float]) -> Observable[tuple[float, ...]]:
     return f
 
 
-def rd_squared_norm(p: float = 2.0) -> Observable[tuple[float, ...]]:
+def squared_norm(p: float = 2.0) -> Observable[tuple[float, ...]]:
     """Energy/growth function: f(x)=||x||_p^2 (default p=2)."""
     if p <= 0:
         raise ValueError("p must be > 0")
@@ -307,7 +307,7 @@ def rd_squared_norm(p: float = 2.0) -> Observable[tuple[float, ...]]:
     return f
 
 
-def rd_monomial(powers: Sequence[int]) -> Observable[tuple[float, ...]]:
+def monomial(powers: Sequence[int]) -> Observable[tuple[float, ...]]:
     """Moment monomial: f(x)=∏_i x_i^{powers[i]} (powers are nonnegative ints)."""
     pw = list(powers)
     if any(k < 0 for k in pw):
@@ -323,7 +323,7 @@ def rd_monomial(powers: Sequence[int]) -> Observable[tuple[float, ...]]:
     return f
 
 
-def rd_sin_frequency(xi: Sequence[float]) -> Observable[tuple[float, ...]]:
+def sin_frequency(xi: Sequence[float]) -> Observable[tuple[float, ...]]:
     """Oscillator: f(x)=sin(<xi,x>). Useful for Fourier / spectral heuristics."""
     xi_ = [float(a) for a in xi]
     def f(x: tuple[float, ...]) -> float:
@@ -331,7 +331,7 @@ def rd_sin_frequency(xi: Sequence[float]) -> Observable[tuple[float, ...]]:
     return f
 
 
-def rd_complex_exponential(xi: Sequence[float]) -> Observable[tuple[float, ...]]:
+def complex_exponential(xi: Sequence[float]) -> Observable[tuple[float, ...]]:
     """Complex exponential: f(x)=exp(i <xi,x>). (Returns complex.)"""
     xi_ = [float(a) for a in xi]
     def f(x: tuple[float, ...]) -> complex:

@@ -68,7 +68,7 @@ def cholesky_spd(a: List[List[float]], tol: float = 1e-12) -> List[List[float]]:
     return L
 
 def rd_key(x: tuple[float, ...], ndigits: int = 2) -> tuple[float, ...]:
-    """Coarse key for R^d points represented as tuples."""
+    """Coarse key for R^d points represented as tuples. Rounds to a grid"""
     return tuple(round(xi, ndigits) for xi in x)
 
 
