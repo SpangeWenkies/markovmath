@@ -344,6 +344,15 @@ class Generator(Generic[X]):
 
     - In true continuous-time theory, A is defined as a limit as Δt→0.
     - In discrete time, setting Δt=1 gives the standard difference operator.
+    
+    - It can be seen as the instantaneous drift of the expected value of the statistic
+    
+    - We can link the generator to the resolvent by the resolvent R_\alpha by u=R_\alpha f that in continuous time solves the static equations:
+        (\alpha I - A)R_\alpha f = f
+    - In the above case A is the operator that gives the evolution of the markov process, i.e., 
+        P_t = e^{tA},   where P_t is a continuous semigroup operator
+    
+    
     """
 
     semigroup: DiscreteSemigroup[X]
