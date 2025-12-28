@@ -65,21 +65,25 @@
 
     
 from dataclasses import dataclass    
-from typing import Callable, TypeVar, Hashable, Generic, Optional, MutableMapping
+from typing import Callable, TypeVar, Hashable, Generic, Optional, MutableMapping, Sequence
 import random
 from core_interfaces import(
     MarkovKernel,
 )
+from helper_funcs import(
+    _as_float_seq,
+    _dot,
+)
+import cmath
+import math
 
 X = TypeVar("X")
 Observable = Callable[[X], float]   # we define now an observable as we can not directly observe events but we do observe an operator/map
+
 # For R^d (general state space), exact caching by state almost never hits because each sample is new. 
 # The caching hook is still useful if you supply a coarse key_fn, e.g. round to a grid by latter defined rd_key
 # The caching will speed up repeated evaluation during the contract checks
 KeyFn = Callable[[X], Hashable]
-
-def rd_key(x: tuple[float, ...], ndigits: int = 2) -> tuple:
-    return tuple(round(xi, ndigits) for xi in x)
 
 @dataclass(slots=True)
 class DiscreteSemigroup(Generic[X]):
@@ -163,10 +167,6 @@ class DiscreteSemigroup(Generic[X]):
         return self.estimate_Tn(
             f, x0, n=1, n_samples=n_samples, rng=rng, seed=seed, f_key=f_key
         )
-
-def indicator(A: Callable[[X], bool]) -> Observable[X]:
-    """Turn an event A(x)->bool into the indicator observable 1_A(x)."""
-    return lambda x: 1.0 if A(x) else 0.0
 
 # p = DiscreteSemigroup.estimate_Tn(indicator(A), x0, n=10, n_samples=5000, rng=rng, seed=seed, f_key=f_key) 
 # gives the probability P(X_10 ∈ A | x0)
@@ -273,4 +273,84 @@ class DiscreteResolvent(Generic[X]):
         if ck is not None:
             self.cache[ck] = est
         return est
+
+# -----------------------------
+# Test functions for R^d
+# -----------------------------
+
+def rd_coordinate(i: int) -> Observable[tuple[float, ...]]:
+    """f(x)=x_i"""
+    def f(x: tuple[float, ...]) -> float:
+        return float(x[i])
+    return f
+
+
+def rd_linear(v: Sequence[float]) -> Observable[tuple[float, ...]]:
+    """f(x)=<v,x>"""
+    v_ = [float(vi) for vi in v]
+    def f(x: tuple[float, ...]) -> float:
+        return _dot(v_, _as_float_seq(x))
+    return f
+
+
+def rd_squared_norm(p: float = 2.0) -> Observable[tuple[float, ...]]:
+    """Energy/growth function: f(x)=||x||_p^2 (default p=2)."""
+    if p <= 0:
+        raise ValueError("p must be > 0")
+    def f(x: tuple[float, ...]) -> float:
+        xs = _as_float_seq(x)
+        if p == 2.0:
+            return float(sum(xi * xi for xi in xs))
+        # ||x||_p = (Σ|xi|^p)^{1/p}, then squared
+        norm_p = sum(abs(xi) ** p for xi in xs) ** (1.0 / p)
+        return float(norm_p * norm_p)
+    return f
+
+
+def rd_monomial(powers: Sequence[int]) -> Observable[tuple[float, ...]]:
+    """Moment monomial: f(x)=∏_i x_i^{powers[i]} (powers are nonnegative ints)."""
+    pw = list(powers)
+    if any(k < 0 for k in pw):
+        raise ValueError("powers must be nonnegative")
+    def f(x: tuple[float, ...]) -> float:
+        xs = _as_float_seq(x)
+        if len(xs) != len(pw):
+            raise ValueError("dimension mismatch: x vs powers")
+        out = 1.0
+        for xi, ki in zip(xs, pw):
+            out *= (xi ** ki)
+        return float(out)
+    return f
+
+
+def rd_sin_frequency(xi: Sequence[float]) -> Observable[tuple[float, ...]]:
+    """Oscillator: f(x)=sin(<xi,x>). Useful for Fourier / spectral heuristics."""
+    xi_ = [float(a) for a in xi]
+    def f(x: tuple[float, ...]) -> float:
+        return math.sin(_dot(xi_, _as_float_seq(x)))
+    return f
+
+
+def rd_complex_exponential(xi: Sequence[float]) -> Observable[tuple[float, ...]]:
+    """Complex exponential: f(x)=exp(i <xi,x>). (Returns complex.)"""
+    xi_ = [float(a) for a in xi]
+    def f(x: tuple[float, ...]) -> complex:
+        return cmath.exp(1j * _dot(xi_, _as_float_seq(x)))
+    return f
+
+
+def payoff_call(strike: float, idx: int = 0) -> Observable[tuple[float, ...]]:
+    """European call payoff: f(x)=max(x[idx]-K, 0)."""
+    K = float(strike)
+    def f(x: tuple[float, ...]) -> float:
+        return max(float(x[idx]) - K, 0.0)
+    return f
+
+
+def payoff_put(strike: float, idx: int = 0) -> Observable[tuple[float, ...]]:
+    """European put payoff: f(x)=max(K-x[idx], 0)."""
+    K = float(strike)
+    def f(x: tuple[float, ...]) -> float:
+        return max(K - float(x[idx]), 0.0)
+    return f
 

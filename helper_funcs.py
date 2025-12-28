@@ -1,7 +1,9 @@
-from typing import List
+from typing import List, TypeVar, Callable, Sequence
 import math
 
 Point = tuple[float, ...]
+X = TypeVar("X")
+Observable = Callable[[X], float]
 
 
 def _validate_corr_matrix(corr: List[List[float]], tol: float = 1e-12) -> None:
@@ -64,3 +66,28 @@ def cholesky_spd(a: List[List[float]], tol: float = 1e-12) -> List[List[float]]:
             else:
                 L[i][j] = s / L[j][j]
     return L
+
+def rd_key(x: tuple[float, ...], ndigits: int = 2) -> tuple[float, ...]:
+    """Coarse key for R^d points represented as tuples."""
+    return tuple(round(xi, ndigits) for xi in x)
+
+
+def indicator(A: Callable[[X], bool]) -> Observable[X]:
+    """Turn an event A(x)->bool into the indicator observable 1_A(x)."""
+    return lambda x: 1.0 if A(x) else 0.0
+
+
+def _dot(u: Sequence[float], v: Sequence[float]) -> float:
+    if len(u) != len(v):
+        raise ValueError("dimension mismatch in dot product")
+    return float(sum(ui * vi for ui, vi in zip(u, v)))
+
+
+def _as_float_seq(x: object) -> Sequence[float]:
+    """Best-effort conversion to a sequence of floats (for R^d utilities).
+
+    Intended for states represented as tuples/lists of floats.
+    """
+    if isinstance(x, (tuple, list)):
+        return [float(v) for v in x]
+    raise TypeError("Expected state to be a tuple/list of floats for this helper.")
