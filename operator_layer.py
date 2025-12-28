@@ -80,6 +80,8 @@ import math
 X = TypeVar("X")
 Observable = Callable[[X], float]   # we define now an observable as we can not directly observe events but we do observe an operator/map
 
+Scalar = float | complex    # to let functions return either float or complex number
+
 # For R^d (general state space), exact caching by state almost never hits because each sample is new. 
 # The caching hook is still useful if you supply a coarse key_fn, e.g. round to a grid by latter defined rd_key
 # The caching will speed up repeated evaluation during the contract checks
@@ -113,7 +115,7 @@ class DiscreteSemigroup(Generic[X]):
         rng: Optional[random.Random] = None,
         seed: Optional[int] = None,
         f_key: Optional[Hashable] = None,
-    ) -> float:
+    ) -> Scalar:
         """
         Monte Carlo estimate of T^n f(x0) = E[f(X_n) | X_0=x0].
 
@@ -162,7 +164,7 @@ class DiscreteSemigroup(Generic[X]):
         rng: Optional[random.Random] = None,
         seed: Optional[int] = None,
         f_key: Optional[Hashable] = None,
-    ) -> float:
+    ) -> Scalar:
         """Convenience wrapper for T^1."""
         return self.estimate_Tn(
             f, x0, n=1, n_samples=n_samples, rng=rng, seed=seed, f_key=f_key
@@ -235,7 +237,7 @@ class DiscreteResolvent(Generic[X]):
         rng: Optional[random.Random] = None,
         seed: Optional[int] = None,
         f_key: Optional[Hashable] = None,
-    ) -> float:
+    ) -> Scalar:
         """
         Monte Carlo estimate of U_λ f(x0) using the unbiased geometric-horizon estimator.
 
