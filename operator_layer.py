@@ -143,13 +143,13 @@ class DiscreteSemigroup(Generic[X]):
         if rng is None:
             rng = random.Random(seed)
 
-        acc = 0.0
+        acc: Scalar = 0.0
         for _ in range(n_samples):
             x = x0
             for _ in range(n):
                 x = self.kernel.law(x).sample(rng)
             acc += f(x)
-        est = acc / n_samples
+        est: Scalar = acc / n_samples
 
         if ck is not None:
             self.cache[ck] = est
@@ -226,7 +226,7 @@ class DiscreteResolvent(Generic[X]):
 
     def __post_init__(self) -> None:
         if not (0.0 < self.lam < 1.0):
-            raise ValueError("lam must be in (0,1)")
+            raise ValueError("lambda must be in (0,1)")
 
     def estimate_U(
         self,
@@ -240,6 +240,14 @@ class DiscreteResolvent(Generic[X]):
     ) -> Scalar:
         """
         Monte Carlo estimate of U_λ f(x0) using the unbiased geometric-horizon estimator.
+        
+        Monte Carlo estimator used here (unbiased, random horizon):
+        Let N be geometric via: start k=0 and "continue" with probability λ each step.
+        Then P(N ≥ k) = λ^k and
+
+            E[ Σ_{k=0}^N f(X_k) ] = U_λ f(x0).
+
+        This avoids explicit λ^k weighting along the path.
 
         Caching:
           - Only used when (cache provided) AND (key_fn provided) AND (seed provided).
@@ -262,7 +270,7 @@ class DiscreteResolvent(Generic[X]):
         if rng is None:
             rng = random.Random(seed)
 
-        acc = 0.0
+        acc: Scalar = 0.0
         for _ in range(n_paths):
             x = x0
             total = f(x)  # k=0
@@ -271,10 +279,95 @@ class DiscreteResolvent(Generic[X]):
                 total += f(x)  # unweighted sum => unbiased for U_λ
             acc += total
 
-        est = acc / n_paths
+        est: Scalar = acc / n_paths
         if ck is not None:
             self.cache[ck] = est
         return est
+
+    def estimate_U_truncated(
+        self,
+        f: Observable[X],
+        x0: X,
+        *,
+        K: int,
+        n_paths: int,
+        rng: Optional[random.Random] = None,
+        seed: Optional[int] = None,
+    ) -> Scalar:
+        """Estimate truncated series Σ_{k=0}^K λ^k f(X_k) by path simulation.
+
+        This is *biased* (missing tail), but can be useful when you want explicit
+        control of truncation (e.g. compare K→∞).
+        """
+        if K < 0:
+            raise ValueError("K must be >= 0")
+        if n_paths <= 0:
+            raise ValueError("n_paths must be > 0")
+        if (rng is None) == (seed is None):
+            raise ValueError("Provide exactly one of rng or seed")
+        if rng is None:
+            rng = random.Random(seed)
+
+        acc: Scalar = 0.0
+        for _ in range(n_paths):
+            x = x0
+            total: Scalar = 0.0
+            w = 1.0
+            total += w * f(x)
+            for _k in range(K):
+                x = self.kernel.law(x).sample(rng)
+                w *= self.lam
+                total += w * f(x)
+            acc += total
+        return acc / n_paths
+
+    def truncation_bias_bound(self, *, f_sup: float, K: int) -> float:
+        """Deterministic sup-norm bound on the tail if |f|≤f_sup.
+
+        |Σ_{k>K} λ^k T^k f| ≤ f_sup * λ^{K+1} / (1-λ)
+        """
+        if f_sup < 0:
+            raise ValueError("f_sup must be >= 0")
+        if K < 0:
+            raise ValueError("K must be >= 0")
+        return float(f_sup * (self.lam ** (K + 1)) / (1.0 - self.lam))
+    
+# -----------------------------
+# Generator (discrete / discretized)
+# -----------------------------
+
+@dataclass(slots=True)
+class Generator(Generic[X]):
+    """(Discretized) generator based on a one-step kernel interpreted as step Δt.
+
+    A_Δt f(x) := (T f(x) - f(x)) / Δt
+
+    - In true continuous-time theory, A is defined as a limit as Δt→0.
+    - In discrete time, setting Δt=1 gives the standard difference operator.
+    """
+
+    semigroup: DiscreteSemigroup[X]
+    dt: float = 1.0
+
+    def __post_init__(self) -> None:
+        if self.dt <= 0:
+            raise ValueError("dt must be > 0")
+
+    def estimate_Af(
+        self,
+        f: Observable[X],
+        x0: X,
+        *,
+        n_samples: int,
+        rng: Optional[random.Random] = None,
+        seed: Optional[int] = None,
+        f_key: Optional[Hashable] = None,
+    ) -> Scalar:
+        """Estimate A f(x0) via (T f - f)/dt."""
+        Tf = self.semigroup.estimate_T(
+            f, x0, n_samples=n_samples, rng=rng, seed=seed, f_key=f_key
+        )
+        return (Tf - f(x0)) / self.dt    
 
 # -----------------------------
 # Test functions with wrappers for R^d
