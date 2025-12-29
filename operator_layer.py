@@ -3,27 +3,27 @@
 # Say our measurable space is (S,\Sigma)
 
 # In our framework we do not have the transition function K(x,A): \Sigma -> [0,1] explicitly
-    # We use a sampler kernel.law(x) to return draws from the K(x,.)
-    
+# We use a sampler kernel.law(x) to return draws from the K(x,.)
+
 # If we have a bounded function f: S -> R^1 we define the Markov operator Tf as
-    # (Tf)(x) = \int_S f(y)K(x,dy) = E[f(X_1)|X_0=x]
-    # this markov operator is used in the unfinished contract checker aswell
-    
+# (Tf)(x) = \int_S f(y)K(x,dy) = E[f(X_1)|X_0=x]
+# this markov operator is used in the unfinished contract checker aswell
+
 # A discrete semigroup gives (T^n f)(x) = T^n f(x) = E[f(X_n)|X_0=x]
-    # i.e. it satisfies the semigroup property (discrete Chapman-Kolmogorov for time-homogeneous markov process)
-        # T^{m+n} = T^m after T^n
-        
+# i.e. it satisfies the semigroup property (discrete Chapman-Kolmogorov for time-homogeneous markov process)
+# T^{m+n} = T^m after T^n
+
 # Note: if we have A \in \Sigma and take f(x) = 1_A(x) then we get the following
-    # T^n f(x) = P_x[X_n \in A]
-    # generated Borel-ish event family then becomes a library of test functions via indicators functions
-    
+# T^n f(x) = P_x[X_n \in A]
+# generated Borel-ish event family then becomes a library of test functions via indicators functions
+
 # Resolvent (which is in our case the discounted potential operator) we can define as follows:
-    # for 0<\lambda<1 and a function f bounded and measurable
-        # (U_{\lambda} f)(x) = \Sum_{k=0}^{\infty} { \lambda^k (P^k f)(x) } = E[\Sum_{k=0}^{\infty} { \lambda^k f(X_k)}]
-    # This is the discrete time analogue of the continuous time resolvent (U_\alpha)_{\alpha>0}
-    # We get some key identities from this:
-        # U_\lambda f = f + \lambda P(U_\lambda f)
-        # equivalent to:    (I - P)U_\lambda f = f
+# for 0<\lambda<1 and a function f bounded and measurable
+# (U_{\lambda} f)(x) = \Sum_{k=0}^{\infty} { \lambda^k (P^k f)(x) } = E[\Sum_{k=0}^{\infty} { \lambda^k f(X_k)}]
+# This is the discrete time analogue of the continuous time resolvent (U_\alpha)_{\alpha>0}
+# We get some key identities from this:
+# U_\lambda f = f + \lambda P(U_\lambda f)
+# equivalent to:    (I - P)U_\lambda f = f
 
 # Note: if we have A \in \Sigma and take f(x) = 1_A(x) then we can see (U_\lambda 1_A)(x) as
 # an expected discounted occupation time of set A starting from x
@@ -31,46 +31,103 @@
 # To approximate an infinite sum we can truncate the sum
 # We then need to evaluate the truncation errors to prove convergence and look at the rate of convergence
 # There are multiple ways to look at these depending on the series properties:
-    # If we have alternating series test being satisfied we get an exact error evaluation 
-    # If we have a hypergeometric series, we can use the ratio to get the evaluation of the error term
-    # For a matrix exponential (which is an infinite series), there is a scaling and squaring method error evaluation
-    # are there more???
+# If we have alternating series test being satisfied we get an exact error evaluation
+# If we have a hypergeometric series, we can use the ratio to get the evaluation of the error term
+# For a matrix exponential (which is an infinite series), there is a scaling and squaring method error evaluation
+# are there more???
 # If we have bounded f then |f|<=M, then also |T^k f| <= M (intuitively this is as Markov operators are contractions in sup norm)
 # if Bias(K) is the infinite sum minus the truncated sum (up to K) then:
-    # |Bias(K)| <= \Sum^{\infty}_{k=K+1} \lambda^k M
-    # the latter is a geometric sum as 0<\lambda<1
-    # thus |Bias(K)| <= M (\lambda^{K+1}) / (\lambda - 1)
-    
-# TODO's for semigroup and resolvent operator layer:
-    # we must look at more test functions that are usefull and what comes after getting the semigroups and resolvents from these, e.g.,
-        # oscillator function sin(x) or e^{i \xi x} usefull for fourier and spectral methods
-        # moment functions
-        # "energy"/growth functions like the squared norm ||.||^2
-        # mean type functions like f(x)=x and f(x)=<v,x>
-        # create some payoff functions f s.t. semigroup is a value function and the resolvent is the discounted total value 
-    # calculating the generator A such that we can use PDE and martingale tools, which way around? can we use P_t = e^{tA} or use limit?
-    # create continuous time versions
-        # do we use montecarlo integration?
-    # after we have generator A a function that finds the b and c in stability formula Af <= -cf + b
-    # Kolmogorov backward and forward???????
-    # can we find resolvent from A or other way around using static equations (\alpha I - A)R_{\alpha}f = f
-    # what can we do with that when we know A on a "rich" class of f then we get a function in A and f that is a Martingale
-    # note somewhere that we need for nice expectations that f are bounded, cont., smooth, of compact support
-    # note also then properties we want for P_t like positivity preservation, contraction, strong cont., invariant measure, Feller, Spectral gap
-    # for resolvents
-        # in cont time make stopping time tau \ sim Exp(\alpha) random stopping time
-        # in dicrete time make \lambda s.t. sum is truncated at geometric stopping time with probability of stopping each step being /lambda
-    # can we check chapman-kolmogorov heuristicly for a P_t?
-    
+# |Bias(K)| <= \Sum^{\infty}_{k=K+1} \lambda^k M
+# the latter is a geometric sum as 0<\lambda<1
+# thus |Bias(K)| <= M (\lambda^{K+1}) / (\lambda - 1)
 
-    
-from dataclasses import dataclass, field    
-from typing import Callable, TypeVar, Hashable, Generic, Optional, MutableMapping, Sequence
+# TODO 27/12/2025 for semigroup and resolvent operator layer:
+# we must look at more test functions that are usefull and what comes after getting the semigroups and resolvents from these, e.g.,
+# oscillator function sin(x) or e^{i \xi x} usefull for fourier and spectral methods
+# moment functions
+# "energy"/growth functions like the squared norm ||.||^2
+# mean type functions like f(x)=x and f(x)=<v,x>
+# create some payoff functions f s.t. semigroup is a value function and the resolvent is the discounted total value
+# calculating the generator A such that we can use PDE and martingale tools, which way around? can we use P_t = e^{tA} or use limit?
+# create continuous time versions
+# do we use montecarlo integration?
+# after we have generator A a function that finds the b and c in stability formula Af <= -cf + b
+# Kolmogorov backward and forward???????
+# can we find resolvent from A or other way around using static equations (\alpha I - A)R_{\alpha}f = f
+# what can we do with that when we know A on a "rich" class of f then we get a function in A and f that is a Martingale
+# note somewhere that we need for nice expectations that f are bounded, cont., smooth, of compact support
+# note also then properties we want for P_t like positivity preservation, contraction, strong cont., invariant measure, Feller, Spectral gap
+# for resolvents
+# in cont time make stopping time tau \ sim Exp(\alpha) random stopping time
+# in dicrete time make \lambda s.t. sum is truncated at geometric stopping time with probability of stopping each step being /lambda
+# can we check chapman-kolmogorov heuristicly for a P_t?
+
+# TODO: 29/12/2025 implementations and questions:
+# explore implication of link from markov chains to martingales again, does it only then mean we can speak of the theory below?
+# if we know A on a "rich" class of f then we get a function in A and f that is a Martingale, what is this knowing on a rich class
+# what stability is found when we have Af <= -cf + b as opposed to stability of distribution spoken of below?
+# implement QM methods for solving Fokker-Planck by using analog to schrödinger's equation
+# create a trigger that sees when FP eq only shows overdamped dynamics, i.e., only 2nd order partials w.r.t. spatial variables
+# we should then be able to write down a master equation and easily solve it numerically
+# find out if continuous time wrapper for the semigroups and resolvent is even sensible or if it is like MC for discretized PDE case
+# clean forward and backword kolmogorov framework with fokker-planck in forward case if we have a density
+# forward eq can either be with a law /mu_t or a density p, what do we do with this? is law programming sensible
+# how to implement PDE's then SDE's then also diffusion equations
+# make the demo into a demo for payoff of EU puts
+# add solvers for PDE's: Euler-Marumaya, Milstein, Runge-Kufta, Rosenbrock, more (see Kuznetsov 2023 and Rybakov 2023)
+# solvers for PDE being Stochastic with Lebesgue integral, Itô integral, (Lévy integral)
+# make generator A be possibly a closed form generator (now it is only made from sampling i think)
+# how to ensure we keep the bond between the Markov chains and the stochestic processes
+# do we want to do something with weak vs strong sol. of a SDE (Yamada-Watanabe theorem)
+# make the distinction that the MC simulation of average paths to calc semigroup is canonical ensembling
+# make the distinction that the other way to calc the semigroup or resolvent is thus through closed form generator and SDE solving
+# think of when what calculation is best, canonical ensembling, PDE analytical or even MC in discretized PDE
+# create the framework that will find the local volatility (problem of inversion of the Fokker-Planck eqation)
+# non parametrically: Dupire
+# parametrically: Brigo & Mercurio (2003)
+# for more info see Fengler (2008), Gatheral (2008), Musiela & Rutkowski (2008)
+# think of when A can not be written closed form, which black-box transitions, learned kernels, complicated algorithmic dynamics are common
+# maybe add these as demo's
+# When we do have a closed form generator we might want to have some example closed forms
+# corresponding to e.g. Black-Scholes, OU, Heston, CIR, etc
+# in general these are Af(x) = b(x) * \diff f(x) + 1/2 \trace (a(x) \diff^2 f(x)), where a(x) = \sigma \sigma' (for smooth f)
+# we also have closed forms if comming from continuous time Markov chain where we know the jump rates. This might be the main link!!!
+# we have closed forms if we have Lévy / jump diffusions (maybe make examples of these aswell)
+# Create a way to calculate the adjoint either numerically or analytically
+# analytically we can use integration by parts
+# numerically we can use CTMC
+# analytically there should be more techniques in lecture on quantum mechanics (also on existence of adjoint and self adjointness etc.)
+# providing closed form of adjoint should also be possible just like with the generator
+# we will use the adjoint generator for the following things
+# evolving either a law or density forward in time with the forward kolmogorov / Fokker-Planck equations
+# computing transition densities / likelihoods for calibration / inference of something (for what?)
+# finding stationary / invariant distributions by solving A^{*}p_{\infty} = 0 with normalization
+# do a forward pricing trick: compute p(t,.|x) and price many payoffs at once by integrating u(t,x) = \int f(y)p(t,y|x)dy
+# use it in risk setting by looking at the result of the forward equations for use in finding tail risk, (hitting probability)
+# consider discounting in both the semigroup (to get Feynman-Kac) and in the resolvent (where it will just shift alpha)
+# make the discounting possibly state-dependent
+# Fokker-Planck equation path integral implementation
+# I want to create a file that can show all kinds of (R^1 to R^3) demo's as graphs of things
+
+
+from dataclasses import dataclass, field
+from typing import (
+    Callable,
+    TypeVar,
+    Hashable,
+    Generic,
+    Optional,
+    MutableMapping,
+    Sequence,
+    Protocol,
+    Iterator,
+    runtime_checkable,
+)
 import random
-from core_interfaces import(
+from core_interfaces import (
     MarkovKernel,
 )
-from helper_funcs import(
+from helper_funcs import (
     _as_float_seq,
     _dot,
 )
@@ -78,14 +135,40 @@ import cmath
 import math
 
 X = TypeVar("X")
-Observable = Callable[[X], float]   # we define now an observable as we can not directly observe events but we do observe an operator/map
+Observable = Callable[
+    [X], float
+]  # we define now an observable as we can not directly observe events but we do observe an operator/map
 
-Scalar = float | complex    # to let functions return either float or complex number
+Scalar = float | complex  # to let functions return either float or complex number
 
-# For R^d (general state space), exact caching by state almost never hits because each sample is new. 
+# For R^d (general state space), exact caching by state almost never hits because each sample is new.
 # The caching hook is still useful if you supply a coarse key_fn, e.g. round to a grid by latter defined rd_key
 # The caching will speed up repeated evaluation during the contract checks
 KeyFn = Callable[[X], Hashable]
+
+
+# if we know A on a rich class of test functions then we can link the notion of a martingale to the markov chain
+# to concretize this we define a domain of test functions for which we know A below
+# A "domain" is thus a family of test functions together with assumptions
+# (e.g., smoothness, boundedness) used when the generator is defined.
+@runtime_checkable
+class GeneratorDomain(Protocol[X]):
+    functions: Sequence[Observable[X]]
+    assumptions: Sequence[str]
+
+    def __iter__(self) -> Iterator[Observable[X]]: ...
+
+
+@dataclass(frozen=True, slots=True)
+class FiniteGeneratorDomain(Generic[X]):
+    """Concrete container for a finite rich class of test functions."""
+
+    functions: Sequence[Observable[X]]
+    assumptions: Sequence[str] = ()
+
+    def __iter__(self) -> Iterator[Observable[X]]:
+        return iter(self.functions)
+
 
 @dataclass(slots=True)
 class DiscreteSemigroup(Generic[X]):
@@ -97,6 +180,7 @@ class DiscreteSemigroup(Generic[X]):
 
     This class provides Monte Carlo estimators of T^n f(x).
     """
+
     kernel: MarkovKernel[X]
 
     # Caching hooks:
@@ -170,8 +254,10 @@ class DiscreteSemigroup(Generic[X]):
             f, x0, n=1, n_samples=n_samples, rng=rng, seed=seed, f_key=f_key
         )
 
-# p = DiscreteSemigroup.estimate_Tn(indicator(A), x0, n=10, n_samples=5000, rng=rng, seed=seed, f_key=f_key) 
+
+# p = DiscreteSemigroup.estimate_Tn(indicator(A), x0, n=10, n_samples=5000, rng=rng, seed=seed, f_key=f_key)
 # gives the probability P(X_10 ∈ A | x0)
+
 
 @dataclass(slots=True)
 class DiscreteResolvent(Generic[X]):
@@ -186,7 +272,7 @@ class DiscreteResolvent(Generic[X]):
         start at k=0
         while U < \lambda (U \sim Uniform[0,1] independent), continue to next step
         otherwise stop
-    
+
     Then P(N >= k) = \lambda^k. Now consider the unweighted random-horizon sum
         Y = \Sum_{k=0}^N f(X_k).
 
@@ -201,7 +287,7 @@ class DiscreteResolvent(Generic[X]):
     So each path contribution Y is an unbiased estimator of U_\lambda f(x0), and
     averaging over `n_paths` preserves this unbiasedness.
 
-    
+
     This implementation is faster compared to a naive implementation of U_\lambda via a weighted infinite series:
         \Sum_{k>=0} λ^k f(X_k),
 
@@ -217,6 +303,7 @@ class DiscreteResolvent(Generic[X]):
       - For \lambda close to 1, E[N] grows like 1/(1-\lambda), so runtime increases.
       - This type of fast estimator is typically used with bounded (or integrable) f.
     """
+
     kernel: MarkovKernel[X]
     lam: float
 
@@ -240,7 +327,7 @@ class DiscreteResolvent(Generic[X]):
     ) -> Scalar:
         """
         Monte Carlo estimate of U_λ f(x0) using the unbiased geometric-horizon estimator.
-        
+
         Monte Carlo estimator used here (unbiased, random horizon):
         Let N be geometric via: start k=0 and "continue" with probability λ each step.
         Then P(N ≥ k) = λ^k and
@@ -331,10 +418,12 @@ class DiscreteResolvent(Generic[X]):
         if K < 0:
             raise ValueError("K must be >= 0")
         return float(f_sup * (self.lam ** (K + 1)) / (1.0 - self.lam))
-    
+
+
 # -----------------------------
 # Generator (discrete / discretized)
 # -----------------------------
+
 
 @dataclass(slots=True)
 class Generator(Generic[X]):
@@ -344,15 +433,15 @@ class Generator(Generic[X]):
 
     - In true continuous-time theory, A is defined as a limit as Δt→0.
     - In discrete time, setting Δt=1 gives the standard difference operator.
-    
+
     - It can be seen as the instantaneous drift of the expected value of the statistic
-    
+
     - We can link the generator to the resolvent by the resolvent R_\alpha by u=R_\alpha f that in continuous time solves the static equations:
         (\alpha I - A)R_\alpha f = f
-    - In the above case A is the operator that gives the evolution of the markov process, i.e., 
+    - In the above case A is the operator that gives the evolution of the markov process, i.e.,
         P_t = e^{tA},   where P_t is a continuous semigroup operator
-    
-    
+
+
     """
 
     semigroup: DiscreteSemigroup[X]
@@ -376,7 +465,7 @@ class Generator(Generic[X]):
         Tf = self.semigroup.estimate_T(
             f, x0, n_samples=n_samples, rng=rng, seed=seed, f_key=f_key
         )
-        return (Tf - f(x0)) / self.dt    
+        return (Tf - f(x0)) / self.dt
 
 
 # -----------------------------
@@ -517,22 +606,28 @@ class ContinuousResolvent(Generic[X]):
             acc += f(x)
         return (acc / n_paths) / self.alpha
 
+
 # -----------------------------
 # Test functions with wrappers for R^d
 # -----------------------------
 
+
 def coordinate(i: int) -> Observable[tuple[float, ...]]:
     """f(x)=x_i"""
+
     def f(x: tuple[float, ...]) -> float:
         return float(x[i])
+
     return f
 
 
 def linear(v: Sequence[float]) -> Observable[tuple[float, ...]]:
     """f(x)=<v,x>"""
     v_ = [float(vi) for vi in v]
+
     def f(x: tuple[float, ...]) -> float:
         return _dot(v_, _as_float_seq(x))
+
     return f
 
 
@@ -540,6 +635,7 @@ def squared_norm(p: float = 2.0) -> Observable[tuple[float, ...]]:
     """Energy/growth function: f(x)=||x||_p^2 (default p=2)."""
     if p <= 0:
         raise ValueError("p must be > 0")
+
     def f(x: tuple[float, ...]) -> float:
         xs = _as_float_seq(x)
         if p == 2.0:
@@ -547,6 +643,7 @@ def squared_norm(p: float = 2.0) -> Observable[tuple[float, ...]]:
         # ||x||_p = (Σ|xi|^p)^{1/p}, then squared
         norm_p = sum(abs(xi) ** p for xi in xs) ** (1.0 / p)
         return float(norm_p * norm_p)
+
     return f
 
 
@@ -555,45 +652,54 @@ def monomial(powers: Sequence[int]) -> Observable[tuple[float, ...]]:
     pw = list(powers)
     if any(k < 0 for k in pw):
         raise ValueError("powers must be nonnegative")
+
     def f(x: tuple[float, ...]) -> float:
         xs = _as_float_seq(x)
         if len(xs) != len(pw):
             raise ValueError("dimension mismatch: x vs powers")
         out = 1.0
         for xi, ki in zip(xs, pw):
-            out *= (xi ** ki)
+            out *= xi**ki
         return float(out)
+
     return f
 
 
 def sin_frequency(xi: Sequence[float]) -> Observable[tuple[float, ...]]:
     """Oscillator: f(x)=sin(<xi,x>). Useful for Fourier / spectral heuristics."""
     xi_ = [float(a) for a in xi]
+
     def f(x: tuple[float, ...]) -> float:
         return math.sin(_dot(xi_, _as_float_seq(x)))
+
     return f
 
 
 def complex_exponential(xi: Sequence[float]) -> Observable[tuple[float, ...]]:
     """Complex exponential: f(x)=exp(i <xi,x>). (Returns complex.)"""
     xi_ = [float(a) for a in xi]
+
     def f(x: tuple[float, ...]) -> complex:
         return cmath.exp(1j * _dot(xi_, _as_float_seq(x)))
+
     return f
 
 
 def payoff_call(strike: float, idx: int = 0) -> Observable[tuple[float, ...]]:
     """European call payoff: f(x)=max(x[idx]-K, 0)."""
     K = float(strike)
+
     def f(x: tuple[float, ...]) -> float:
         return max(float(x[idx]) - K, 0.0)
+
     return f
 
 
 def payoff_put(strike: float, idx: int = 0) -> Observable[tuple[float, ...]]:
     """European put payoff: f(x)=max(K-x[idx], 0)."""
     K = float(strike)
+
     def f(x: tuple[float, ...]) -> float:
         return max(K - float(x[idx]), 0.0)
-    return f
 
+    return f
