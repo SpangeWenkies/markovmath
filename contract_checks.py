@@ -21,7 +21,7 @@ from core_interfaces import (
     Density,
     PointRd,
 )
-from operator_layer import (
+from operators import (
     DiscreteResolvent,
     Observable,
     Scalar,

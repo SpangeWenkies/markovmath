@@ -14,7 +14,8 @@ from contract_checks import (
     # check_kernel_contracts,
     check_event_probabilities_monotonicity_additivity,
 )
-from operator_layer import DiscreteSemigroup, DiscreteResolvent, rd_key, indicator
+from helper_funcs import indicator, rd_key
+from operators import DiscreteSemigroup, DiscreteResolvent
 import seaborn as sns
 import pandas as pd
 import random
