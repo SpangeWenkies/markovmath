@@ -124,6 +124,7 @@ from typing import (
     runtime_checkable,
     Any,
 )
+from enum import Enum
 import random
 from core_interfaces import (
     MarkovKernel,
@@ -153,6 +154,9 @@ Scalar = float | complex  # to let functions return either float or complex numb
 # The caching will speed up repeated evaluation during the contract checks
 KeyFn = Callable[[X], Hashable]
 
+class GeneratorSource(str, Enum):
+    CLOSED_FORM = "closed_form"
+    SAMPLED = "sampled"
 
 # if we know A on a rich class of test functions then we can link the notion of a martingale to the markov chain
 # to concretize this we define a domain of test functions for which we know A below
@@ -199,6 +203,8 @@ class DiscreteSemigroup(Generic[X]):
     #   e.g. rounding coordinates to a grid.
     key_fn: Optional[KeyFn[X]] = None
     cache: Optional[MutableMapping[tuple, float]] = None
+    
+    method: str = "mc"
 
     def estimate_Tn(
         self,
@@ -317,7 +323,8 @@ class DiscreteResolvent(Generic[X]):
 
     kernel: MarkovKernel[X]
     lam: float
-
+    method: str = "mc"
+    
     # Caching hooks (same idea as semigroup):
     key_fn: Optional[KeyFn[X]] = None
     cache: Optional[MutableMapping[tuple, float]] = None
@@ -458,6 +465,7 @@ class Generator(Generic[X]):
     semigroup: DiscreteSemigroup[X]
     dt: float = 1.0
     domain: Optional[GeneratorDomain[X]] = None
+    source: GeneratorSource = GeneratorSource.SAMPLED
 
     def __post_init__(self) -> None:
         if self.dt <= 0:
@@ -483,6 +491,155 @@ class Generator(Generic[X]):
         )
         return (Tf - f(x0)) / self.dt
 
+class SampledGenerator(Generator[X]):
+    """Alias for Monte Carlo generators based on a sampled semigroup."""
+
+
+@dataclass(slots=True)
+class ClosedFormGenerator(Generic[X]):
+    """Closed-form generator for diffusions or jump processes.
+
+    Supports:
+      - Diffusions via drift b(x) and diffusion matrix a(x) (covariance).
+      - Jump generators via explicit jump rates.
+      - Completely custom generator through `custom_generator`.
+    """
+
+    drift: Optional[Callable[[X], Sequence[float]]] = None
+    diffusion: Optional[Callable[[X], Sequence[Sequence[float]]]] = None
+    jump_rates: Optional[Callable[[X], Sequence[tuple[X, float]]]] = None
+    custom_generator: Optional[Callable[[Observable[X], X], Scalar]] = None
+    domain: Optional[GeneratorDomain[X]] = None
+    fd_step: float = 1e-4
+    grad_fn: Optional[Callable[[Observable[X], X], Sequence[float]]] = None
+    hess_fn: Optional[Callable[[Observable[X], X], Sequence[Sequence[float]]]] = None
+    source: GeneratorSource = field(
+        default=GeneratorSource.CLOSED_FORM, init=False
+    )
+
+    def __post_init__(self) -> None:
+        if self.fd_step <= 0:
+            raise ValueError("fd_step must be > 0")
+        if (
+            self.custom_generator is None
+            and self.jump_rates is None
+            and self.drift is None
+            and self.diffusion is None
+        ):
+            raise ValueError(
+                "Provide custom_generator, jump_rates, or drift/diffusion."
+            )
+        if self.jump_rates is not None and (
+            self.drift is not None or self.diffusion is not None
+        ):
+            raise ValueError(
+                "Jump generators must be specified without drift/diffusion."
+            )
+
+    def estimate_Af(self, f: Observable[X], x0: X) -> Scalar:
+        if self.domain is not None and f not in self.domain:
+            raise ValueError(
+                "f must belong to the (rich) class of nicely behaving functions."
+            )
+        if self.custom_generator is not None:
+            return self.custom_generator(f, x0)
+        if self.jump_rates is not None:
+            return self._jump_generator(f, x0)
+        return self._diffusion_generator(f, x0)
+
+    def _jump_generator(self, f: Observable[X], x0: X) -> Scalar:
+        rates = self.jump_rates(x0) if self.jump_rates is not None else ()
+        fx = f(x0)
+        total: Scalar = 0.0
+        for y, rate in rates:
+            total += rate * (f(y) - fx)
+        return total
+
+    def _diffusion_generator(self, f: Observable[X], x0: X) -> Scalar:
+        if self.drift is None and self.diffusion is None:
+            raise ValueError("Diffusion generator requires drift or diffusion.")
+        drift = self.drift(x0) if self.drift is not None else ()
+        diffusion = self.diffusion(x0) if self.diffusion is not None else ()
+        grad = self._grad(f, x0)
+        hess = self._hess(f, x0)
+        drift_term = _dot(_as_float_seq(drift), _as_float_seq(grad)) if drift else 0.0
+        diffusion_term = 0.0
+        if diffusion:
+            diffusion_term = 0.5 * self._trace_product(diffusion, hess)
+        return drift_term + diffusion_term
+
+    def _grad(self, f: Observable[X], x0: X) -> Sequence[float]:
+        if self.grad_fn is not None:
+            return self.grad_fn(f, x0)
+        return self._finite_diff_grad(f, x0)
+
+    def _hess(self, f: Observable[X], x0: X) -> Sequence[Sequence[float]]:
+        if self.hess_fn is not None:
+            return self.hess_fn(f, x0)
+        return self._finite_diff_hessian(f, x0)
+
+    def _finite_diff_grad(self, f: Observable[X], x0: X) -> list[float]:
+        x = _as_float_seq(x0)
+        h = self.fd_step
+        grad: list[float] = []
+        for i in range(len(x)):
+            xp = list(x)
+            xm = list(x)
+            xp[i] += h
+            xm[i] -= h
+            grad.append((f(tuple(xp)) - f(tuple(xm))) / (2.0 * h))
+        return grad
+
+    def _finite_diff_hessian(self, f: Observable[X], x0: X) -> list[list[float]]:
+        x = _as_float_seq(x0)
+        h = self.fd_step
+        d = len(x)
+        hess = [[0.0 for _ in range(d)] for _ in range(d)]
+        fx = f(tuple(x))
+        for i in range(d):
+            xp = list(x)
+            xm = list(x)
+            xp[i] += h
+            xm[i] -= h
+            fpp = f(tuple(xp))
+            fmm = f(tuple(xm))
+            hess[i][i] = (fpp - 2.0 * fx + fmm) / (h**2)
+            for j in range(i + 1, d):
+                xpp = list(x)
+                xpm = list(x)
+                xmp = list(x)
+                xmm = list(x)
+                xpp[i] += h
+                xpp[j] += h
+                xpm[i] += h
+                xpm[j] -= h
+                xmp[i] -= h
+                xmp[j] += h
+                xmm[i] -= h
+                xmm[j] -= h
+                val = (
+                    f(tuple(xpp))
+                    - f(tuple(xpm))
+                    - f(tuple(xmp))
+                    + f(tuple(xmm))
+                ) / (4.0 * h**2)
+                hess[i][j] = val
+                hess[j][i] = val
+        return hess
+
+    @staticmethod
+    def _trace_product(
+        a: Sequence[Sequence[float]], b: Sequence[Sequence[float]]
+    ) -> float:
+        if len(a) != len(b):
+            raise ValueError("dimension mismatch in trace product")
+        total = 0.0
+        for i, row in enumerate(a):
+            if len(row) != len(b[i]):
+                raise ValueError("dimension mismatch in trace product")
+            for j, aij in enumerate(row):
+                total += aij * b[i][j]
+        return float(total)
 
 # -----------------------------
 # Continuous-time (discretized) wrappers
@@ -503,6 +660,7 @@ class ContinuousSemigroup(Generic[X]):
 
     key_fn: Optional[KeyFn[X]] = None
     cache: Optional[MutableMapping[tuple, Scalar]] = None
+    method: str = "mc"
 
     _disc: DiscreteSemigroup[X] = field(init=False, repr=False)
 
@@ -510,7 +668,10 @@ class ContinuousSemigroup(Generic[X]):
         if self.dt <= 0:
             raise ValueError("dt must be > 0")
         self._disc = DiscreteSemigroup[X](
-            kernel=self.kernel_dt, key_fn=self.key_fn, cache=self.cache
+            kernel=self.kernel_dt,
+            method=self.method,
+            key_fn=self.key_fn,
+            cache=self.cache,
         )
 
     def n_steps(self, t: float) -> int:
@@ -558,6 +719,8 @@ class ContinuousResolvent(Generic[X]):
     cache: Optional[MutableMapping[tuple, Scalar]] = None
 
     _disc_res: DiscreteResolvent[X] = field(init=False, repr=False)
+    
+    method: str = "mc"
 
     def __post_init__(self) -> None:
         if self.dt <= 0:
@@ -566,7 +729,11 @@ class ContinuousResolvent(Generic[X]):
             raise ValueError("alpha must be > 0")
         lam = math.exp(-self.alpha * self.dt)
         self._disc_res = DiscreteResolvent[X](
-            kernel=self.kernel_dt, lam=lam, key_fn=self.key_fn, cache=self.cache
+            kernel=self.kernel_dt,
+            lam=lam,
+            method=self.method,
+            key_fn=self.key_fn,
+            cache=self.cache,
         )
 
     @property
