@@ -15,6 +15,11 @@ from core_interfaces import (
     event_key,
     Union,
     Complement,
+    ProbabilityMeasure,
+    DensityEvolution,
+    LawEvolution,
+    Density,
+    PointRd,
 )
 from operator_layer import (
     DiscreteResolvent,
@@ -750,4 +755,85 @@ def check_drift_condition(
         max_violation=max_violation,
         mean_violation=mean_violation,
         holds=holds,
+    )
+
+def _estimate_density_mass(
+    density: Density[PointRd],
+    *,
+    bounds: Sequence[tuple[float, float]],
+    rng: random.Random,
+    n_points: int,
+) -> float:
+    if n_points <= 0:
+        raise ValueError("n_points must be > 0")
+    if not bounds:
+        raise ValueError("bounds must be nonempty")
+    for low, high in bounds:
+        if high <= low:
+            raise ValueError("bounds must have low < high for each dimension")
+
+    vol = 1.0
+    for low, high in bounds:
+        vol *= (high - low)
+
+    acc = 0.0
+    for _ in range(n_points):
+        x = tuple(rng.uniform(low, high) for low, high in bounds)
+        acc += density(x)
+    return vol * (acc / n_points)
+
+
+def check_density_evolution_mass_conservation(
+    solver: DensityEvolution[PointRd],
+    p0: Density[PointRd],
+    *,
+    t: float,
+    bounds: Sequence[tuple[float, float]],
+    rng: random.Random,
+    n_points: int = 20000,
+    tol: float = 2e-2,
+) -> None:
+    """
+    Checks mass conservation for density solvers by numerical integration over a bounding box.
+    """
+    p_t = solver.evolve_density(p0, t)
+    mass0 = _estimate_density_mass(p0, bounds=bounds, rng=rng, n_points=n_points)
+    mass_t = _estimate_density_mass(p_t, bounds=bounds, rng=rng, n_points=n_points)
+    assert abs(mass_t - mass0) <= tol, (
+        f"Density mass conservation failed: mass0={mass0}, mass_t={mass_t}, tol={tol}"
+    )
+
+
+def check_law_evolution_normalization(
+    solver: LawEvolution[X, E],
+    mu0: ProbabilityMeasure[X, E],
+    *,
+    space: MeasurableSpace[X, E],
+    t: float,
+    rng: random.Random,
+    n_samples: int = 5000,
+    tol: float = 2e-2,
+    events: Sequence[E] | None = None,
+) -> None:
+    """
+    Checks normalization for law solvers using sampling.
+
+    If events are provided, they should form a disjoint cover of the space.
+    Otherwise we check P(X in whole) ≈ 1.
+    """
+    if n_samples <= 0:
+        raise ValueError("n_samples must be > 0")
+    mu_t = solver.evolve_law(mu0, t)
+    if events is None:
+        est = estimate_prob(mu_t, space.whole(), n_samples, rng)
+        assert abs(est - 1.0) <= tol, f"Law normalization failed: P(whole)≈{est}, tol={tol}"
+        return
+
+    total = 0.0
+    for ev in events:
+        if not isinstance(ev, Event):
+            raise TypeError("events must be callable Events for sampling checks")
+        total += estimate_prob(mu_t, ev, n_samples, rng)
+    assert abs(total - 1.0) <= tol, (
+        f"Law normalization failed: sum P(A_i)≈{total}, tol={tol}"
     )
