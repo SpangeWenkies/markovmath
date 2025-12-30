@@ -123,6 +123,7 @@ from typing import (
     Iterator,
     runtime_checkable,
     Any,
+    TypeAlias,
 )
 from enum import Enum
 import random
@@ -439,12 +440,12 @@ class DiscreteResolvent(Generic[X]):
 
 
 # -----------------------------
-# Generator (discrete / discretized)
+# Generator (sampled / closed-form)
 # -----------------------------
 
 
 @dataclass(slots=True)
-class Generator(Generic[X]):
+class SampledGenerator(Generic[X]):
     """(Discretized) generator based on a one-step kernel interpreted as step Δt.
 
     A_Δt f(x) := (T f(x) - f(x)) / Δt
@@ -465,7 +466,9 @@ class Generator(Generic[X]):
     semigroup: DiscreteSemigroup[X]
     dt: float = 1.0
     domain: Optional[GeneratorDomain[X]] = None
-    source: GeneratorSource = GeneratorSource.SAMPLED
+    source: GeneratorSource = field(
+        default=GeneratorSource.SAMPLED, init=False
+    )
 
     def __post_init__(self) -> None:
         if self.dt <= 0:
@@ -490,10 +493,6 @@ class Generator(Generic[X]):
             f, x0, n_samples=n_samples, rng=rng, seed=seed, f_key=f_key
         )
         return (Tf - f(x0)) / self.dt
-
-class SampledGenerator(Generator[X]):
-    """Alias for Monte Carlo generators based on a sampled semigroup."""
-
 
 @dataclass(slots=True)
 class ClosedFormGenerator(Generic[X]):
@@ -641,9 +640,12 @@ class ClosedFormGenerator(Generic[X]):
                 total += aij * b[i][j]
         return float(total)
 
+Generator: TypeAlias = SampledGenerator[X] | ClosedFormGenerator[X]
+
 # -----------------------------
 # Continuous-time (discretized) wrappers
 # -----------------------------
+
 @dataclass(slots=True)
 class ContinuousSemigroup(Generic[X]):
     """Continuous-time semigroup built from a small-step kernel.
