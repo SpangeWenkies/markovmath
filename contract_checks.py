@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Callable, Iterable, Sequence
+from dataclasses import dataclass
 import random
 import math
 from core_interfaces import (
@@ -20,7 +21,8 @@ from operator_layer import (
     Observable,
     Scalar,
     DiscreteSemigroup,
-    ContinuousSemigroup
+    ContinuousSemigroup,
+    Generator
 )
 
 
@@ -634,3 +636,118 @@ def check_invariant_measure(
         acc_f += float(f(x))
         acc_tf += float(semigroup.estimate_T(f, x, n_samples=n_inner, rng=rng))
     return acc_f / n_mu, acc_tf / n_mu
+
+@dataclass(frozen=True, slots=True)
+class MartingaleDiagnostics:
+    mean: float
+    std_err: float
+    n_paths: int
+    t: float
+    tolerance: float
+    holds: bool
+
+
+def check_martingale_contract(
+    generator: Generator[X],
+    f: Observable[X],
+    x0: X,
+    *,
+    t: float,
+    n_paths: int,
+    n_A_samples: int,
+    rng: random.Random,
+    tol: float = 1e-1,
+) -> MartingaleDiagnostics:
+    """Estimate E[M_t] for M_t = f(X_t)-f(X_0)-∫_0^t Af(X_s) ds.
+
+    Uses a Riemann sum with step Δt = generator.dt and MC estimates for Af.
+    """
+    if n_paths <= 0 or n_A_samples <= 0:
+        raise ValueError("n_paths and n_A_samples must be > 0")
+    if t < 0:
+        raise ValueError("t must be >= 0")
+
+    dt = generator.dt
+    n_steps = int(round(t / dt))
+    t_used = n_steps * dt
+    if abs(t_used - t) > 1e-9:
+        raise ValueError("t must be a multiple of generator.dt for this check.")
+
+    kernel = generator.semigroup.kernel
+    m_vals: list[float] = []
+    for _ in range(n_paths):
+        x = x0
+        x_start = x
+        integral = 0.0
+        for _k in range(n_steps):
+            Af_x = generator.estimate_Af(
+                f, x, n_samples=n_A_samples, rng=rng
+            )
+            integral += float(Af_x) * dt
+            x = kernel.law(x).sample(rng)
+        m_t = float(f(x)) - float(f(x_start)) - integral
+        m_vals.append(m_t)
+
+    mean = sum(m_vals) / n_paths
+    if n_paths == 1:
+        std_err = 0.0
+    else:
+        var = sum((v - mean) ** 2 for v in m_vals) / (n_paths - 1)
+        std_err = math.sqrt(var / n_paths)
+    holds = abs(mean) <= tol
+    return MartingaleDiagnostics(
+        mean=mean,
+        std_err=std_err,
+        n_paths=n_paths,
+        t=t_used,
+        tolerance=tol,
+        holds=holds,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class DriftConditionDiagnostics:
+    n_points: int
+    violations: int
+    max_violation: float
+    mean_violation: float
+    holds: bool
+
+
+def check_drift_condition(
+    A: Callable[[X], float],
+    f: Callable[[X], float],
+    c: float,
+    b: float,
+    *,
+    sampler: Sampler[X],
+    rng: random.Random,
+    n_points: int = 200,
+    tol: float = 1e-8,
+) -> DriftConditionDiagnostics:
+    """Estimate whether Af ≤ -c f + b holds on sampled points."""
+    if n_points <= 0:
+        raise ValueError("n_points must be > 0")
+
+    max_violation = 0.0
+    sum_violation = 0.0
+    violations = 0
+    for _ in range(n_points):
+        x = sampler.sample(rng)
+        lhs = float(A(x))
+        rhs = -c * float(f(x)) + b
+        violation = lhs - rhs
+        if violation > tol:
+            violations += 1
+            max_violation = max(max_violation, violation)
+            sum_violation += violation
+
+    mean_violation = (sum_violation / violations) if violations > 0 else 0.0
+    holds = max_violation <= tol
+    return DriftConditionDiagnostics(
+        n_points=n_points,
+        violations=violations,
+        max_violation=max_violation,
+        mean_violation=mean_violation,
+        holds=holds,
+    )
