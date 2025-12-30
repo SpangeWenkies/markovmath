@@ -199,6 +199,13 @@ The code will treat these as structured objects whose properties are **contracts
 * jump processes / Lévy-type examples (as feasible)
 * explicit Dirichlet-form examples where capacities are computable or estimable
 
+### 5) Lean 4 
+* Formalize the contracts in Lean as opposed to sampling version contract checks or prove axioms 
+(triangle inequality, countable additivity, etc.).
+* Formalize the specific structures you use
+(e.g., prove that LpMetricRd satisfies metric axioms, or that a specific kernel preserves measurability.)
+* If we want Python to rely on the Lean proof, we need an integration layer 
+(exporting verified artifacts, or a re-implementation in Lean with a proof certificate).
 ---
 
 ## Differentiable algorithms extension
