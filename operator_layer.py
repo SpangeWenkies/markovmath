@@ -157,9 +157,11 @@ DensityVector: TypeAlias = Sequence[float]
 # The caching will speed up repeated evaluation during the contract checks
 KeyFn = Callable[[X], Hashable]
 
+
 class GeneratorSource(str, Enum):
     CLOSED_FORM = "closed_form"
     SAMPLED = "sampled"
+
 
 # if we know A on a rich class of test functions then we can link the notion of a martingale to the markov chain
 # to concretize this we define a domain of test functions for which we know A below
@@ -206,7 +208,7 @@ class DiscreteSemigroup(Generic[X]):
     #   e.g. rounding coordinates to a grid.
     key_fn: Optional[KeyFn[X]] = None
     cache: Optional[MutableMapping[tuple, float]] = None
-    
+
     method: str = "mc"
 
     def estimate_Tn(
@@ -327,7 +329,7 @@ class DiscreteResolvent(Generic[X]):
     kernel: MarkovKernel[X]
     lam: float
     method: str = "mc"
-    
+
     # Caching hooks (same idea as semigroup):
     key_fn: Optional[KeyFn[X]] = None
     cache: Optional[MutableMapping[tuple, float]] = None
@@ -468,9 +470,7 @@ class SampledGenerator(Generic[X]):
     semigroup: DiscreteSemigroup[X]
     dt: float = 1.0
     domain: Optional[GeneratorDomain[X]] = None
-    source: GeneratorSource = field(
-        default=GeneratorSource.SAMPLED, init=False
-    )
+    source: GeneratorSource = field(default=GeneratorSource.SAMPLED, init=False)
 
     def __post_init__(self) -> None:
         if self.dt <= 0:
@@ -496,6 +496,7 @@ class SampledGenerator(Generic[X]):
         )
         return (Tf - f(x0)) / self.dt
 
+
 @dataclass(slots=True)
 class ClosedFormGenerator(Generic[X]):
     """Closed-form generator for diffusions or jump processes.
@@ -514,9 +515,7 @@ class ClosedFormGenerator(Generic[X]):
     fd_step: float = 1e-4
     grad_fn: Optional[Callable[[Observable[X], X], Sequence[float]]] = None
     hess_fn: Optional[Callable[[Observable[X], X], Sequence[Sequence[float]]]] = None
-    source: GeneratorSource = field(
-        default=GeneratorSource.CLOSED_FORM, init=False
-    )
+    source: GeneratorSource = field(default=GeneratorSource.CLOSED_FORM, init=False)
 
     def __post_init__(self) -> None:
         if self.fd_step <= 0:
@@ -619,10 +618,7 @@ class ClosedFormGenerator(Generic[X]):
                 xmm[i] -= h
                 xmm[j] -= h
                 val = (
-                    f(tuple(xpp))
-                    - f(tuple(xpm))
-                    - f(tuple(xmp))
-                    + f(tuple(xmm))
+                    f(tuple(xpp)) - f(tuple(xpm)) - f(tuple(xmp)) + f(tuple(xmm))
                 ) / (4.0 * h**2)
                 hess[i][j] = val
                 hess[j][i] = val
@@ -641,6 +637,7 @@ class ClosedFormGenerator(Generic[X]):
             for j, aij in enumerate(row):
                 total += aij * b[i][j]
         return float(total)
+
 
 Generator: TypeAlias = SampledGenerator[X] | ClosedFormGenerator[X]
 
@@ -831,9 +828,11 @@ class StationaryDistributionSolver(Generic[X]):
             p = self._step(p)
         return _normalize_density_vector([(1.0 - lam) * ti for ti in total])
 
+
 # -----------------------------
 # Continuous-time (discretized) wrappers
 # -----------------------------
+
 
 @dataclass(slots=True)
 class ContinuousSemigroup(Generic[X]):
@@ -910,7 +909,7 @@ class ContinuousResolvent(Generic[X]):
     cache: Optional[MutableMapping[tuple, Scalar]] = None
 
     _disc_res: DiscreteResolvent[X] = field(init=False, repr=False)
-    
+
     method: str = "mc"
 
     def __post_init__(self) -> None:
@@ -980,6 +979,7 @@ class ContinuousResolvent(Generic[X]):
             acc += f(x)
         return (acc / n_paths) / self.alpha
 
+
 @dataclass(slots=True)
 class ForwardEquation(Generic[X, E]):
     """
@@ -991,7 +991,9 @@ class ForwardEquation(Generic[X, E]):
     law_solver: Optional[LawEvolution[X, E]] = None
     density_solver: Optional[DensityEvolution[X]] = None
 
-    def forward_law_step(self, mu0: ProbabilityMeasure[X, E], t: float) -> ProbabilityMeasure[X, E]:
+    def forward_law_step(
+        self, mu0: ProbabilityMeasure[X, E], t: float
+    ) -> ProbabilityMeasure[X, E]:
         if self.law_solver is None:
             raise ValueError("No law solver configured for ForwardEquation.")
         return self.law_solver.evolve_law(mu0, t)
@@ -1001,7 +1003,9 @@ class ForwardEquation(Generic[X, E]):
             raise ValueError("No density solver configured for ForwardEquation.")
         return self.density_solver.evolve_density(p0, t)
 
-    def forward(self, initial: ProbabilityMeasure[X, E] | Density[X], t: float) -> ProbabilityMeasure[X, E] | Density[X]:
+    def forward(
+        self, initial: ProbabilityMeasure[X, E] | Density[X], t: float
+    ) -> ProbabilityMeasure[X, E] | Density[X]:
         if self._is_law(initial):
             return self.forward_law_step(initial, t)
         return self.forward_density_step(initial, t)
@@ -1009,6 +1013,7 @@ class ForwardEquation(Generic[X, E]):
     @staticmethod
     def _is_law(obj: Any) -> bool:
         return hasattr(obj, "sample") or hasattr(obj, "measure")
+
 
 # -----------------------------
 # Test functions with wrappers for R^d
