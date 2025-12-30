@@ -23,6 +23,8 @@ E = TypeVar("E")  # event representation
 # in R^d do not use np.array as these are not hashable, do Point = tuple[float, ...] of length d
 PointRd: TypeAlias = tuple[float, ...]
 
+Density: TypeAlias = Callable[[X], float]
+
 # TODO: finalize a contract testing file holding axiom checks by runtime / property-based tests
 
 # TODO: would it be handy to use from typing the import Iterable
@@ -109,7 +111,13 @@ class Measure(Protocol[X, E]):
     def measure(
         self, event: E
     ) -> float: ...  # here is the function for the actual mapping the measure does and must be non-neg. target
+    def has_density(self) -> bool:
+        """Return True if a density representation is available for this measure."""
+        ...
 
+    def to_density(self) -> Density[X]:
+        """Return a density p(x) if available; raise if not implemented."""
+        raise NotImplementedError("Density representation not available for this measure.")
 
 class Sampler(Protocol[X]):
     """Sampling capability."""
@@ -124,6 +132,8 @@ class ProbabilityMeasure(Measure[X, E], Sampler[X], Protocol[X, E]):
     # in general, many probability measures we can sample from don’t let us compute exact measure(event) for arbitrary events;
     # this protocol assumes you can do both, but we could split it if needed.
     # helpers can be added here
+    def has_density(self) -> bool: ...
+    def to_density(self) -> Density[X]: ...
 
 
 class MarkovKernel(Protocol[X]):
@@ -344,6 +354,32 @@ class DriftingCorrelatedGaussianRandomWalkKernelRd:
             raise ValueError("dimension mismatch: x vs drift")
         shift = tuple(xi + di for xi, di in zip(x, self.drift))
         return ShiftedCorrelatedGaussianNoiseRd(base=self.noise, shift=shift)
+    
+class LawEvolution(Protocol[X, E]):
+    """
+    Contract for evolving probability laws forward in time. (Kolmogorov)
+
+    evolve_law(mu0, t) must return a ProbabilityMeasure for time t.
+    Contract expectations:
+      - mu0 is a probability measure (total mass 1).
+      - Returned law is normalized and nonnegative on all events.
+      - Semigroup/consistency assumptions are left to solver documentation.
+    """
+
+    def evolve_law(self, mu0: ProbabilityMeasure[X, E], t: float) -> ProbabilityMeasure[X, E]: ...
+
+
+class DensityEvolution(Protocol[X]):
+    """
+    Contract for evolving densities forward in time. (Kolmogorov)
+
+    evolve_density(p0, t) must return a density p_t(x).
+    Contract expectations:
+      - p0 is nonnegative and integrates to 1 on the reference space.
+      - p_t is nonnegative and integrates to 1 for all t.
+    """
+
+    def evolve_density(self, p0: Density[X], t: float) -> Density[X]: ...
 
 
 # ---------- Keys (for canonicalization/dedup in the AST (Abstract Syntax Tree)) ----------
