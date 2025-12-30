@@ -67,6 +67,19 @@ Because Python cannot enforce measure-theoretic axioms at the type level, the pr
 
 These tests **don’t** prove theorems, but they catch implementation bugs early and make the abstractions usable.
 
+### Generator domains and stability checks
+
+The generator layer treats a “rich class of test functions” as a concrete list plus
+assumptions. In code this is represented by the `GeneratorDomain` protocol
+(`operator_layer.py`), which stores a `functions` sequence along with human-readable
+`assumptions` (e.g., boundedness, smoothness, compact support). `FiniteGeneratorDomain`
+is a concrete implementation of this protocol for explicit finite lists; other
+implementations can keep the same interface while providing richer membership logic.
+
+For stability/Lyapunov diagnostics, the contract checks include a drift condition
+helper that samples points and estimates whether `Af ≤ -c f + b` holds. This is a
+Monte Carlo heuristic and again serves as a quick stability check rather than a proof.
+
 ---
 
 ## Mathematical positioning
