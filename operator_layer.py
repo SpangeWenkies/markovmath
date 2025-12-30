@@ -90,7 +90,7 @@
 # maybe add these as demo's
 # When we do have a closed form generator we might want to have some example closed forms
 # corresponding to e.g. Black-Scholes, OU, Heston, CIR, etc
-# in general these are Af(x) = b(x) * \diff f(x) + 1/2 \trace (a(x) \diff^2 f(x)), where a(x) = \sigma \sigma' (for smooth f)
+# in general these are Af(x) = b(x) * laplace f(x) + 1/2 \trace (a(x) laplace^2 f(x)), where a(x) = \sigma \sigma' (for smooth f)
 # we also have closed forms if comming from continuous time Markov chain where we know the jump rates. This might be the main link!!!
 # we have closed forms if we have Lévy / jump diffusions (maybe make examples of these aswell)
 # Create a way to calculate the adjoint either numerically or analytically
@@ -157,6 +157,7 @@ class GeneratorDomain(Protocol[X]):
     assumptions: Sequence[str]
 
     def __iter__(self) -> Iterator[Observable[X]]: ...
+    def __contains__(self, f: object) -> bool: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,6 +169,9 @@ class FiniteGeneratorDomain(Generic[X]):
 
     def __iter__(self) -> Iterator[Observable[X]]:
         return iter(self.functions)
+
+    def __contains__(self, f: object) -> bool:
+        return f in self.functions
 
 
 @dataclass(slots=True)
@@ -446,6 +450,7 @@ class Generator(Generic[X]):
 
     semigroup: DiscreteSemigroup[X]
     dt: float = 1.0
+    domain: Optional[GeneratorDomain[X]] = None
 
     def __post_init__(self) -> None:
         if self.dt <= 0:
@@ -462,6 +467,10 @@ class Generator(Generic[X]):
         f_key: Optional[Hashable] = None,
     ) -> Scalar:
         """Estimate A f(x0) via (T f - f)/dt."""
+        if self.domain is not None and f not in self.domain:
+            raise ValueError(
+                "f must belong to the (rich) class of nicely behaving functions."
+            )
         Tf = self.semigroup.estimate_T(
             f, x0, n_samples=n_samples, rng=rng, seed=seed, f_key=f_key
         )
