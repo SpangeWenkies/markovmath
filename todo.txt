@@ -44,3 +44,17 @@ TODO: 29/12/2025 implementations and questions:
         make the discounting possibly state-dependent
     Fokker-Planck equation path integral implementation
     I want to create a file that can show all kinds of (R^1 to R^3) demo's as graphs of things
+    Go over all functions and classes and see if everything is still "as general as it should be", e.g.,
+        that everything is in R^d (some generators closed form are not i think yet)
+        that we have enough interfaces
+        that we have both continuous and discrete where applicable
+        that semigroup and or resolvent code handles both closed form and sampling generator (maybe now it is only handling sampling one)
+        that stationarydistributionsolver is correct and in the right place
+        that maybe the adjoint CTMC must be connected to a class in core interfaces revolving around markov chains
+        that what a density vector and density is right now is the correct general implementation
+        that we have implemented the general forward equation kolmogorov style
+        that the continuous versions are truly the implementations of the continuous theory
+            they might now just be the discrete with time step going towards zero
+        that the core interfaces are correct, maybe this needs to be modularized / refactored
+    Create a completely new demo with the current stuff where we build everything starting from a markov chain and we do not do checks, but plots
+    
