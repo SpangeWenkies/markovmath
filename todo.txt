@@ -1,0 +1,46 @@
+TODO: 29/12/2025 implementations and questions:
+    explore implication of link from markov chains to martingales again, does it only then mean we can speak of the theory below?
+        if we know A on a "rich" class of f then we get a function in A and f that is a Martingale, what is this knowing on a rich class
+    what stability is found when we have Af <= -cf + b as opposed to stability of distribution spoken of below?
+    implement QM methods for solving Fokker-Planck by using analog to schrödinger's equation
+    create a trigger that sees when FP eq only shows overdamped dynamics, i.e., only 2nd order partials w.r.t. spatial variables
+        we should then be able to write down a master equation and easily solve it numerically
+    find out if continuous time wrapper for the semigroups and resolvent is even sensible or if it is like MC for discretized PDE case
+    clean forward and backword kolmogorov framework with fokker-planck in forward case if we have a density
+    forward eq can either be with a law /mu_t or a density p, what do we do with this? is law programming sensible
+    how to implement PDE's then SDE's then also diffusion equations
+    make the demo into a demo for financial mathematics case
+    add solvers for PDE's: Euler-Marumaya, Milstein, Runge-Kufta, Rosenbrock, more (see Kuznetsov 2023 and Rybakov 2023)
+        solvers for PDE being Stochastic involving Lebesgue integral, Itô integral, (Lévy integral)
+    make generator A be possibly a closed form generator (now it is only made from sampling i think)
+    how to ensure we keep the bond between the Markov chains and the stochestic processes? through generator / martingale stuff?
+    do we want to do something with weak vs strong sol. of a SDE (Yamada-Watanabe theorem)
+    make the distinction that the MC simulation of average paths to calc semigroup is canonical ensembling
+    make the distinction that the other way to calc the semigroup or resolvent is thus through closed form generator and SDE solving
+    think of when what calculation is best, canonical ensembling, PDE analytical or even MC in discretized PDE
+    create the framework that will find the local volatility (problem of inversion of the Fokker-Planck eqation)
+        non parametrically: Dupire
+        parametrically: Brigo & Mercurio (2003)
+        for more info see Fengler (2008), Gatheral (2008), Musiela & Rutkowski (2008)
+    think of when A can not be written closed form, which black-box transitions, learned kernels, complicated algorithmic dynamics are common
+        maybe add these as demo's
+    When we do have a closed form generator we might want to have some example closed forms
+        corresponding to e.g. Black-Scholes, OU, Heston, CIR, etc
+            in general these are Af(x) = b(x) * \diff f(x) + 1/2 \trace (a(x) \diff^2 f(x)), where a(x) = \sigma \sigma' (for smooth f)
+        we also have closed forms if comming from continuous time Markov chain where we know the jump rates. This might be the main link!!!
+        we have closed forms if we have Lévy / jump diffusions (maybe make examples of these aswell)
+    Create a way to calculate the adjoint either numerically or analytically
+        analytically we can use integration by parts
+        numerically we can use CTMC
+        analytically there should be more techniques in lecture on quantum mechanics (also on existence of adjoint and self adjointness etc.)
+    providing closed form of adjoint should also be possible just like with the generator
+    we will use the adjoint generator for the following things
+        evolving either a law or density forward in time with the forward kolmogorov / Fokker-Planck equations
+        computing transition densities / likelihoods for calibration / inference of something (for what?)
+        finding stationary / invariant distributions by solving A^{*}p_{\infty} = 0 with normalization
+        do a forward pricing trick: compute p(t,.|x) and price many payoffs at once by integrating u(t,x) = \int f(y)p(t,y|x)dy
+            use it in risk setting by looking at the result of the forward equations for use in finding tail risk, (hitting probability)
+    consider discounting in both the semigroup (to get Feynman-Kac) and in the resolvent (where it will just shift alpha)
+        make the discounting possibly state-dependent
+    Fokker-Planck equation path integral implementation
+    I want to create a file that can show all kinds of (R^1 to R^3) demo's as graphs of things

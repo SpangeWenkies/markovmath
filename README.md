@@ -64,14 +64,54 @@ Because Python cannot enforce measure-theoretic axioms at the type level, the pr
 * metric sanity (symmetry, triangle inequality on sampled points)
 * kernel sanity (sampling validity; basic consistency checks via test functions)
 * measure-like sanity on finite event families (monotonicity/additivity heuristics)
+* semigroup/resolvent identities (Chapman–Kolmogorov, discrete resolvent identity)
+* martingale, drift, and stability diagnostics (Lyapunov-style checks)
+* positivity, sup-norm contraction, invariant-measure heuristics
+* law/density normalization checks for evolution solvers
 
 These tests **don’t** prove theorems, but they catch implementation bugs early and make the abstractions usable.
+
+#### What the contract checks cover
+
+Low-level helpers:
+
+* `estimate_prob` — empirical probability of an event under a sampler.
+* `approx_subset`, `approx_disjoint` — heuristic subset/disjointness checks via sampling.
+
+Core contracts:
+
+* `check_metric_contract` — Monte Carlo check of metric axioms.
+* `check_measure_contracts` — measure sanity (empty set, nonnegativity, monotonicity, additivity).
+* `check_kernel_contracts` — two-path kernel consistency check for test functions.
+* `check_event_probabilities_monotonicity_additivity` — event-family diagnostics with printed summaries.
+
+Semigroup/resolvent diagnostics:
+
+* `check_discrete_chapman_kolmogorov` — compare \(T^{m+n} f\) vs \(T^m(T^n f)\).
+* `check_continuous_chapman_kolmogorov` — discretized Chapman–Kolmogorov for \(P_t\).
+* `check_discrete_resolvent_identity` — checks \(U_\lambda f = f + \lambda T(U_\lambda f)\).
+* `check_kolmogorov_backward_discretized` — finite-difference backward equation check.
+
+Stability and invariance:
+
+* `estimate_drift_condition` — fit \(Af \le -cf + b\) over sampled states.
+* `check_discrete_martingale` — discrete-time martingale diagnostic for \(A = T - I\).
+* `check_martingale_contract` — continuous-time martingale diagnostic via Riemann sum.
+* `check_drift_condition` — Monte Carlo check of \(Af \le -cf + b\).
+* `check_positivity_preservation` — verifies \(f \ge 0 \Rightarrow Tf \ge 0\) on samples.
+* `check_supnorm_contraction` — empirical \(\|Tf\|_\infty \le \|f\|_\infty\).
+* `check_invariant_measure` — compares \(E_\mu[f]\) and \(E_\mu[Tf]\).
+
+Forward evolution checks:
+
+* `check_density_evolution_mass_conservation` — integrates density to verify mass preservation.
+* `check_law_evolution_normalization` — checks law normalization (whole space or partition).
 
 ### Generator domains and stability checks
 
 The generator layer treats a “rich class of test functions” as a concrete list plus
 assumptions. In code this is represented by the `GeneratorDomain` protocol
-(`operator_layer.py`), which stores a `functions` sequence along with human-readable
+(`operators/custom_types.py`), which stores a `functions` sequence along with human-readable
 `assumptions` (e.g., boundedness, smoothness, compact support). `FiniteGeneratorDomain`
 is a concrete implementation of this protocol for explicit finite lists; other
 implementations can keep the same interface while providing richer membership logic.
@@ -79,6 +119,24 @@ implementations can keep the same interface while providing richer membership lo
 For stability/Lyapunov diagnostics, the contract checks include a drift condition
 helper that samples points and estimates whether `Af ≤ -c f + b` holds. This is a
 Monte Carlo heuristic and again serves as a quick stability check rather than a proof.
+
+### Operator layer (unfinished)
+
+The `operators/` package contains the current operator-level implementations:
+
+* **Discrete semigroup/resolvent**: `DiscreteSemigroup` and `DiscreteResolvent` provide
+  Monte Carlo estimators for \(T^n f\) and \(U_\lambda f\), with optional caching hooks.
+* **Continuous-time wrappers**: `ContinuousSemigroup` and `ContinuousResolvent` build
+  time-discretized approximations from small-step kernels.
+* **Generators**: `SampledGenerator` (from a semigroup with step size) and
+  `ClosedFormGenerator` (drift/diffusion/jump or custom generator).
+* **Adjoint/forward tools**: `AdjointGenerator` protocols with concrete adjoints for
+  1D diffusions and finite-state CTMCs, plus `StationaryDistributionSolver` for
+  adjoint-based steady-state estimation.
+* **Forward equation wrapper**: `ForwardEquation` dispatches between law and density
+  evolution implementations.
+* **Test functions**: helpers in `operators/test_functions.py` for common observables
+  (coordinates, monomials, sinusoids, payoff functions).
 
 ---
 
@@ -97,10 +155,11 @@ The intended baseline setting is **standard Borel / Polish spaces**, where:
 The planned analytic layer is:
 
 * Dirichlet forms (symmetric and non-symmetric)
-* semigroups and resolvents
-* generators and domains
 * quasi-regularity conditions leading to Hunt processes
 * potentials, excessive functions, capacities, polar sets
+
+Basic semigroups/resolvents/generators are already partly finished implementing in `operators/`, with
+the remaining analytic structure planned as future work.
 
 The code will treat these as structured objects whose properties are **contracts** backed by:
 
@@ -110,11 +169,11 @@ The code will treat these as structured objects whose properties are **contracts
 
 ---
 
-## Roadmap
+## Possible Roadmap
 
 ### 1) Markov process theory layer
 
-* transition function (P_t), semigroup (T_t) on functions
+* transition function (P_t), semigroup (T_t) on functions (**discrete/continuous semigroup estimators already implemented**)
 * strong Markov property objects (stopping times, shift operators)
 * sample-path properties (cadlag, right continuity)
 * Hunt process conditions and constructions from kernels/semigroups
@@ -123,12 +182,13 @@ The code will treat these as structured objects whose properties are **contracts
 
 * bilinear forms (\mathcal{E}(u,v)) on (L^2(E,m))
 * symmetric and non-symmetric forms; sector condition
-* associated semigroup and resolvent
+* associated semigroup and resolvent (**resolvent estimators implemented; analytic form theory still planned**)
+* generators and domains (**sampled + closed-form generator classes implemented**)
 * quasi-regularity and process association
 
 ### 3) Potential theory layer
 
-* resolvent (U_\alpha), excessive functions, potentials
+* resolvent (U_\alpha), excessive functions, potentials (**discrete/continuousresolvent estimators already implemented**)
 * capacity of sets, quasi-continuous versions, polar sets
 * fine topology, hitting probabilities, equilibrium potentials (in examples)
 
