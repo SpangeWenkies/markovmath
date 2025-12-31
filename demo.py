@@ -275,23 +275,23 @@ if __name__ == "__main__":
             kernel=kernel,
         )
     
-    alt_path_2d = mp_alt_2d.sample_path(240, rng=random.Random(20))
-    animate_path_r2(
-        alt_path_2d,
-        f"{label.replace('_', ' ').title()} random walk in R^2 (evolution)",
-        f"{label}_random_walk_r2_evolution.gif",
-    )
+        alt_path_2d = mp_alt_2d.sample_path(240, rng=random.Random(20))
+        animate_path_r2(
+            alt_path_2d,
+            f"{label.replace('_', ' ').title()} random walk in R^2 (evolution)",
+            f"{label}_random_walk_r2_evolution.gif",
+        )
 
-    mp_alt_3d = MarkovProcess(
-        init=NormalRd(mean=(0.0, 0.0, 0.0), std=0.4),
-        kernel=kernel,
-    )
-    alt_path_3d = mp_alt_3d.sample_path(220, rng=random.Random(21))
-    animate_path_r3(
-        alt_path_3d,
-        f"{label.replace('_', ' ').title()} random walk in R^3 (evolution)",
-        f"{label}_random_walk_r3_evolution.gif",
-    )
+        mp_alt_3d = MarkovProcess(
+            init=NormalRd(mean=(0.0, 0.0, 0.0), std=0.4),
+            kernel=kernel,
+        )
+        alt_path_3d = mp_alt_3d.sample_path(220, rng=random.Random(21))
+        animate_path_r3(
+            alt_path_3d,
+            f"{label.replace('_', ' ').title()} random walk in R^3 (evolution)",
+            f"{label}_random_walk_r3_evolution.gif",
+        )
 
 
     # --- LpMetricRd for p=1,2,inf ---
