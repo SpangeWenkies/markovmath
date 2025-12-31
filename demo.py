@@ -75,95 +75,95 @@ if __name__ == "__main__":
 
         return density
 
-def animate_path_r2(path: list[PointRd], title: str, filename: str) -> None:
-    df = pd.DataFrame(path, columns=["x", "y"])
-    xs = df["x"].tolist()
-    ys = df["y"].tolist()
-    x_min, x_max = min(xs), max(xs)
-    y_min, y_max = min(ys), max(ys)
-    pad = 0.2
-    frame_indices = list(range(2, len(xs) + 1, 4))
-    fig, ax = plt.subplots(figsize=(5, 5))
+    def animate_path_r2(path: list[PointRd], title: str, filename: str) -> None:
+        df = pd.DataFrame(path, columns=["x", "y"])
+        xs = df["x"].tolist()
+        ys = df["y"].tolist()
+        x_min, x_max = min(xs), max(xs)
+        y_min, y_max = min(ys), max(ys)
+        pad = 0.2
+        frame_indices = list(range(2, len(xs) + 1, 4))
+        fig, ax = plt.subplots(figsize=(5, 5))
 
-    def update_r2(frame_idx: int):
-        ax.cla()
-        ax.plot(
-            xs[:frame_idx],
-            ys[:frame_idx],
-            linewidth=1.2,
-            color="tab:blue",
+        def update_r2(frame_idx: int):
+            ax.cla()
+            ax.plot(
+                xs[:frame_idx],
+                ys[:frame_idx],
+                linewidth=1.2,
+                color="tab:blue",
+            )
+            ax.scatter(xs[0], ys[0], c="green", s=20)
+            ax.scatter(xs[frame_idx - 1], ys[frame_idx - 1], c="red", s=20)
+            ax.set_xlim(x_min - pad, x_max + pad)
+            ax.set_ylim(y_min - pad, y_max + pad)
+            ax.set_title(title)
+            ax.set_xlabel("x")
+            ax.set_ylabel("y")
+            ax.set_aspect("equal")
+            return []
+
+        gif_path = os.path.join(output_dir, filename)
+        anim = animation.FuncAnimation(
+            fig,
+            update_r2,
+            frames=frame_indices,
+            interval=80,
+            blit=False,
         )
-        ax.scatter(xs[0], ys[0], c="green", s=20)
-        ax.scatter(xs[frame_idx - 1], ys[frame_idx - 1], c="red", s=20)
-        ax.set_xlim(x_min - pad, x_max + pad)
-        ax.set_ylim(y_min - pad, y_max + pad)
-        ax.set_title(title)
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-        ax.set_aspect("equal")
-        return []
+        anim.save(gif_path, writer=animation.PillowWriter(fps=12))
+        plt.close(fig)
 
-    gif_path = os.path.join(output_dir, filename)
-    anim = animation.FuncAnimation(
-        fig,
-        update_r2,
-        frames=frame_indices,
-        interval=80,
-        blit=False,
-    )
-    anim.save(gif_path, writer=animation.PillowWriter(fps=12))
-    plt.close(fig)
+    def animate_path_r3(path: list[PointRd], title: str, filename: str) -> None:
+        df = pd.DataFrame(path, columns=["x", "y", "z"])
+        xs = df["x"].tolist()
+        ys = df["y"].tolist()
+        zs = df["z"].tolist()
+        x_min, x_max = min(xs), max(xs)
+        y_min, y_max = min(ys), max(ys)
+        z_min, z_max = min(zs), max(zs)
+        pad = 0.2
+        frame_indices = list(range(2, len(xs) + 1, 4))
+        fig = plt.figure(figsize=(6, 5))
+        ax = fig.add_subplot(111, projection="3d")
 
-def animate_path_r3(path: list[PointRd], title: str, filename: str) -> None:
-    df = pd.DataFrame(path, columns=["x", "y", "z"])
-    xs = df["x"].tolist()
-    ys = df["y"].tolist()
-    zs = df["z"].tolist()
-    x_min, x_max = min(xs), max(xs)
-    y_min, y_max = min(ys), max(ys)
-    z_min, z_max = min(zs), max(zs)
-    pad = 0.2
-    frame_indices = list(range(2, len(xs) + 1, 4))
-    fig = plt.figure(figsize=(6, 5))
-    ax = fig.add_subplot(111, projection="3d")
+        def update_r3(frame_idx: int):
+            ax.cla()
+            ax.plot(
+                xs[:frame_idx],
+                ys[:frame_idx],
+                zs[:frame_idx],
+                linewidth=1.2,
+                color="tab:blue",
+            )
+            ax.scatter(xs[0], ys[0], zs[0], c="green", s=20)
+            ax.scatter(
+                xs[frame_idx - 1],
+                ys[frame_idx - 1],
+                zs[frame_idx - 1],
+                c="red",
+                s=20,
+            )
+            ax.set_xlim(x_min - pad, x_max + pad)
+            ax.set_ylim(y_min - pad, y_max + pad)
+            ax.set_zlim(z_min - pad, z_max + pad)
+            ax.set_title(title)
+            ax.set_xlabel("x")
+            ax.set_ylabel("y")
+            ax.set_zlabel("z")
+            ax.view_init(elev=20, azim=35)
+            return []
 
-    def update_r3(frame_idx: int):
-        ax.cla()
-        ax.plot(
-            xs[:frame_idx],
-            ys[:frame_idx],
-            zs[:frame_idx],
-            linewidth=1.2,
-            color="tab:blue",
+        gif_path = os.path.join(output_dir, filename)
+        anim = animation.FuncAnimation(
+            fig,
+            update_r3,
+            frames=frame_indices,
+            interval=80,
+            blit=False,
         )
-        ax.scatter(xs[0], ys[0], zs[0], c="green", s=20)
-        ax.scatter(
-            xs[frame_idx - 1],
-            ys[frame_idx - 1],
-            zs[frame_idx - 1],
-            c="red",
-            s=20,
-        )
-        ax.set_xlim(x_min - pad, x_max + pad)
-        ax.set_ylim(y_min - pad, y_max + pad)
-        ax.set_zlim(z_min - pad, z_max + pad)
-        ax.set_title(title)
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-        ax.set_zlabel("z")
-        ax.view_init(elev=20, azim=35)
-        return []
-
-    gif_path = os.path.join(output_dir, filename)
-    anim = animation.FuncAnimation(
-        fig,
-        update_r3,
-        frames=frame_indices,
-        interval=80,
-        blit=False,
-    )
-    anim.save(gif_path, writer=animation.PillowWriter(fps=12))
-    plt.close(fig)
+        anim.save(gif_path, writer=animation.PillowWriter(fps=12))
+        plt.close(fig)
 
     # --- Markov processes in R^1 ---
     origin_1d: PointRd = (0.0,)
@@ -453,7 +453,7 @@ def animate_path_r3(path: list[PointRd], title: str, filename: str) -> None:
     # --- Continuous semigroup and resolvent ---
     dt = 0.2
     cont_semigroup = ContinuousSemigroup(standard_kernel, dt=dt)
-    cont_resolvent = ContinuousResolvent(standard_kernel, dt=dt, alpha=1.0)
+    # cont_resolvent = ContinuousResolvent(standard_kernel, dt=dt, alpha=1.0)
     t_grid = [0.0, 0.4, 0.8, 1.2, 1.6]
     cont_rows = []
     for name, fn in test_funcs.items():
