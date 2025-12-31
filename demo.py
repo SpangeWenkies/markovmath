@@ -44,6 +44,7 @@ import random
 import math
 import os
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 if __name__ == "__main__":
     rng = random.Random(0)
@@ -155,6 +156,56 @@ if __name__ == "__main__":
     ax.set_ylabel("y")
     ax.set_zlabel("z")
     save_fig("markov_paths_r3.png")
+    
+    xs_3d = df_3d["x"].tolist()
+    ys_3d = df_3d["y"].tolist()
+    zs_3d = df_3d["z"].tolist()
+    x_min, x_max = min(xs_3d), max(xs_3d)
+    y_min, y_max = min(ys_3d), max(ys_3d)
+    z_min, z_max = min(zs_3d), max(zs_3d)
+    pad = 0.2
+    frame_indices = list(range(2, len(xs_3d) + 1, 4))
+    fig = plt.figure(figsize=(6, 5))
+    ax = fig.add_subplot(111, projection="3d")
+
+    def update_r3(frame_idx: int):
+        ax.cla()
+        ax.plot(
+            xs_3d[:frame_idx],
+            ys_3d[:frame_idx],
+            zs_3d[:frame_idx],
+            linewidth=1.2,
+            color="tab:blue",
+        )
+        ax.scatter(xs_3d[0], ys_3d[0], zs_3d[0], c="green", s=20)
+        ax.scatter(
+            xs_3d[frame_idx - 1],
+            ys_3d[frame_idx - 1],
+            zs_3d[frame_idx - 1],
+            c="red",
+            s=20,
+        )
+        ax.set_xlim(x_min - pad, x_max + pad)
+        ax.set_ylim(y_min - pad, y_max + pad)
+        ax.set_zlim(z_min - pad, z_max + pad)
+        ax.set_title("Correlated random walk in R^3 (evolution)")
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_zlabel("z")
+        ax.view_init(elev=20, azim=35)
+        return []
+
+    gif_path = os.path.join(output_dir, "markov_paths_r3_evolution.gif")
+    anim = animation.FuncAnimation(
+        fig,
+        update_r3,
+        frames=frame_indices,
+        interval=80,
+        blit=False,
+    )
+    anim.save(gif_path, writer=animation.PillowWriter(fps=12))
+    plt.close(fig)
+
 
     # --- LpMetricRd for p=1,2,inf ---
     p_values = [1.0, 2.0, math.inf]
