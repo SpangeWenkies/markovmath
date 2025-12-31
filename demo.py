@@ -8,6 +8,10 @@ from core_interfaces import (
     RandomWalkKernelRd,
     CorrelatedGaussianNoiseRd,
     DriftingCorrelatedGaussianRandomWalkKernelRd,
+    LaplaceRandomWalkKernelRd,
+    StudentTRandomWalkKernelRd,
+    UniformBallRandomWalkKernelRd,
+
 )
 from contract_checks import (
     check_metric_contract,
@@ -71,6 +75,96 @@ if __name__ == "__main__":
 
         return density
 
+def animate_path_r2(path: list[PointRd], title: str, filename: str) -> None:
+    df = pd.DataFrame(path, columns=["x", "y"])
+    xs = df["x"].tolist()
+    ys = df["y"].tolist()
+    x_min, x_max = min(xs), max(xs)
+    y_min, y_max = min(ys), max(ys)
+    pad = 0.2
+    frame_indices = list(range(2, len(xs) + 1, 4))
+    fig, ax = plt.subplots(figsize=(5, 5))
+
+    def update_r2(frame_idx: int):
+        ax.cla()
+        ax.plot(
+            xs[:frame_idx],
+            ys[:frame_idx],
+            linewidth=1.2,
+            color="tab:blue",
+        )
+        ax.scatter(xs[0], ys[0], c="green", s=20)
+        ax.scatter(xs[frame_idx - 1], ys[frame_idx - 1], c="red", s=20)
+        ax.set_xlim(x_min - pad, x_max + pad)
+        ax.set_ylim(y_min - pad, y_max + pad)
+        ax.set_title(title)
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_aspect("equal")
+        return []
+
+    gif_path = os.path.join(output_dir, filename)
+    anim = animation.FuncAnimation(
+        fig,
+        update_r2,
+        frames=frame_indices,
+        interval=80,
+        blit=False,
+    )
+    anim.save(gif_path, writer=animation.PillowWriter(fps=12))
+    plt.close(fig)
+
+def animate_path_r3(path: list[PointRd], title: str, filename: str) -> None:
+    df = pd.DataFrame(path, columns=["x", "y", "z"])
+    xs = df["x"].tolist()
+    ys = df["y"].tolist()
+    zs = df["z"].tolist()
+    x_min, x_max = min(xs), max(xs)
+    y_min, y_max = min(ys), max(ys)
+    z_min, z_max = min(zs), max(zs)
+    pad = 0.2
+    frame_indices = list(range(2, len(xs) + 1, 4))
+    fig = plt.figure(figsize=(6, 5))
+    ax = fig.add_subplot(111, projection="3d")
+
+    def update_r3(frame_idx: int):
+        ax.cla()
+        ax.plot(
+            xs[:frame_idx],
+            ys[:frame_idx],
+            zs[:frame_idx],
+            linewidth=1.2,
+            color="tab:blue",
+        )
+        ax.scatter(xs[0], ys[0], zs[0], c="green", s=20)
+        ax.scatter(
+            xs[frame_idx - 1],
+            ys[frame_idx - 1],
+            zs[frame_idx - 1],
+            c="red",
+            s=20,
+        )
+        ax.set_xlim(x_min - pad, x_max + pad)
+        ax.set_ylim(y_min - pad, y_max + pad)
+        ax.set_zlim(z_min - pad, z_max + pad)
+        ax.set_title(title)
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_zlabel("z")
+        ax.view_init(elev=20, azim=35)
+        return []
+
+    gif_path = os.path.join(output_dir, filename)
+    anim = animation.FuncAnimation(
+        fig,
+        update_r3,
+        frames=frame_indices,
+        interval=80,
+        blit=False,
+    )
+    anim.save(gif_path, writer=animation.PillowWriter(fps=12))
+    plt.close(fig)
+
     # --- Markov processes in R^1 ---
     origin_1d: PointRd = (0.0,)
     standard_kernel = RandomWalkKernelRd(step_std=1.0)
@@ -133,6 +227,12 @@ if __name__ == "__main__":
     plt.legend()
     save_fig("markov_paths_r2.png")
 
+    animate_path_r2(
+        path_2d,
+        "Correlated random walk in R^2 (evolution)",
+        "markov_paths_r2_evolution.gif",
+    )
+
     corr_3d = (
         (1.0, 0.2, -0.1),
         (0.2, 1.0, 0.4),
@@ -157,54 +257,41 @@ if __name__ == "__main__":
     ax.set_zlabel("z")
     save_fig("markov_paths_r3.png")
     
-    xs_3d = df_3d["x"].tolist()
-    ys_3d = df_3d["y"].tolist()
-    zs_3d = df_3d["z"].tolist()
-    x_min, x_max = min(xs_3d), max(xs_3d)
-    y_min, y_max = min(ys_3d), max(ys_3d)
-    z_min, z_max = min(zs_3d), max(zs_3d)
-    pad = 0.2
-    frame_indices = list(range(2, len(xs_3d) + 1, 4))
-    fig = plt.figure(figsize=(6, 5))
-    ax = fig.add_subplot(111, projection="3d")
-
-    def update_r3(frame_idx: int):
-        ax.cla()
-        ax.plot(
-            xs_3d[:frame_idx],
-            ys_3d[:frame_idx],
-            zs_3d[:frame_idx],
-            linewidth=1.2,
-            color="tab:blue",
-        )
-        ax.scatter(xs_3d[0], ys_3d[0], zs_3d[0], c="green", s=20)
-        ax.scatter(
-            xs_3d[frame_idx - 1],
-            ys_3d[frame_idx - 1],
-            zs_3d[frame_idx - 1],
-            c="red",
-            s=20,
-        )
-        ax.set_xlim(x_min - pad, x_max + pad)
-        ax.set_ylim(y_min - pad, y_max + pad)
-        ax.set_zlim(z_min - pad, z_max + pad)
-        ax.set_title("Correlated random walk in R^3 (evolution)")
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-        ax.set_zlabel("z")
-        ax.view_init(elev=20, azim=35)
-        return []
-
-    gif_path = os.path.join(output_dir, "markov_paths_r3_evolution.gif")
-    anim = animation.FuncAnimation(
-        fig,
-        update_r3,
-        frames=frame_indices,
-        interval=80,
-        blit=False,
+    animate_path_r3(
+        path_3d,
+        "Correlated random walk in R^3 (evolution)",
+        "markov_paths_r3_evolution.gif",
     )
-    anim.save(gif_path, writer=animation.PillowWriter(fps=12))
-    plt.close(fig)
+
+    # --- Alternative random walk kernels ---
+    alt_kernels = {
+        "laplace": LaplaceRandomWalkKernelRd(scale=0.35),
+        "student_t": StudentTRandomWalkKernelRd(df=4.0, scale=0.35),
+        "uniform_ball": UniformBallRandomWalkKernelRd(radius=0.6),
+    }
+    for label, kernel in alt_kernels.items():
+        mp_alt_2d = MarkovProcess(
+            init=NormalRd(mean=(0.0, 0.0), std=0.4),
+            kernel=kernel,
+        )
+    
+    alt_path_2d = mp_alt_2d.sample_path(240, rng=random.Random(20))
+    animate_path_r2(
+        alt_path_2d,
+        f"{label.replace('_', ' ').title()} random walk in R^2 (evolution)",
+        f"{label}_random_walk_r2_evolution.gif",
+    )
+
+    mp_alt_3d = MarkovProcess(
+        init=NormalRd(mean=(0.0, 0.0, 0.0), std=0.4),
+        kernel=kernel,
+    )
+    alt_path_3d = mp_alt_3d.sample_path(220, rng=random.Random(21))
+    animate_path_r3(
+        alt_path_3d,
+        f"{label.replace('_', ' ').title()} random walk in R^3 (evolution)",
+        f"{label}_random_walk_r3_evolution.gif",
+    )
 
 
     # --- LpMetricRd for p=1,2,inf ---
