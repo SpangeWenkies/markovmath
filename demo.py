@@ -67,24 +67,33 @@ if __name__ == "__main__":
             return math.exp(-0.5 * ((x - mean) ** 2) / var) / math.sqrt(
                 2.0 * math.pi * var
             )
+
         return density
-   
+
     # --- Markov processes in R^1 ---
     origin_1d: PointRd = (0.0,)
     standard_kernel = RandomWalkKernelRd(step_std=1.0)
-    standard_mp = MarkovProcess(init=NormalRd(mean=origin_1d, std=1.0), kernel=standard_kernel)
+    standard_mp = MarkovProcess(
+        init=NormalRd(mean=origin_1d, std=1.0), kernel=standard_kernel
+    )
 
     nonstandard_kernel = RandomWalkKernelRd(step_std=0.4)
-    nonstandard_mp = MarkovProcess(init=NormalRd(mean=origin_1d, std=2.0), kernel=nonstandard_kernel)
-    
+    nonstandard_mp = MarkovProcess(
+        init=NormalRd(mean=origin_1d, std=2.0), kernel=nonstandard_kernel
+    )
+
     drift_noise = CorrelatedGaussianNoiseRd(stds=(0.6,), corr=((1.0,),))
     drift_kernel = DriftingCorrelatedGaussianRandomWalkKernelRd(
         noise=drift_noise,
         drift=(0.12,),
     )
-    drift_mp = MarkovProcess(init=NormalRd(mean=origin_1d, std=1.0), kernel=drift_kernel)
+    drift_mp = MarkovProcess(
+        init=NormalRd(mean=origin_1d, std=1.0), kernel=drift_kernel
+    )
 
-    shifted_mp = MarkovProcess(init=NormalRd(mean=(2.0,), std=0.8), kernel=nonstandard_kernel)
+    shifted_mp = MarkovProcess(
+        init=NormalRd(mean=(2.0,), std=0.8), kernel=nonstandard_kernel
+    )
 
     n_steps_1d = 200
     paths_1d = {
@@ -109,7 +118,9 @@ if __name__ == "__main__":
     corr_kernel_2d = DriftingCorrelatedGaussianRandomWalkKernelRd(
         noise=corr_noise_2d, drift=(0.0, 0.0)
     )
-    mp_2d = MarkovProcess(init=NormalRd(mean=(0.0, 0.0), std=0.5), kernel=corr_kernel_2d)
+    mp_2d = MarkovProcess(
+        init=NormalRd(mean=(0.0, 0.0), std=0.5), kernel=corr_kernel_2d
+    )
     path_2d = mp_2d.sample_path(300, rng=random.Random(5))
     df_2d = pd.DataFrame(path_2d, columns=["x", "y"])
     plt.figure(figsize=(5, 5))
@@ -130,8 +141,10 @@ if __name__ == "__main__":
     corr_kernel_3d = DriftingCorrelatedGaussianRandomWalkKernelRd(
         noise=corr_noise_3d, drift=(0.02, -0.01, 0.05)
     )
-    
-    mp_3d = MarkovProcess(init=NormalRd(mean=(0.0, 0.0, 0.0), std=0.4), kernel=corr_kernel_3d)
+
+    mp_3d = MarkovProcess(
+        init=NormalRd(mean=(0.0, 0.0, 0.0), std=0.4), kernel=corr_kernel_3d
+    )
     path_3d = mp_3d.sample_path(250, rng=random.Random(6))
     df_3d = pd.DataFrame(path_3d, columns=["x", "y", "z"])
     fig = plt.figure(figsize=(6, 5))
@@ -152,8 +165,14 @@ if __name__ == "__main__":
             xs = [1, 1, -1, -1, 1]
             ys = [1, -1, -1, 1, 1]
         else:
-            xs = [math.copysign(abs(math.cos(t)) ** (2.0 / p_val), math.cos(t)) for t in theta]
-            ys = [math.copysign(abs(math.sin(t)) ** (2.0 / p_val), math.sin(t)) for t in theta]
+            xs = [
+                math.copysign(abs(math.cos(t)) ** (2.0 / p_val), math.cos(t))
+                for t in theta
+            ]
+            ys = [
+                math.copysign(abs(math.sin(t)) ** (2.0 / p_val), math.sin(t))
+                for t in theta
+            ]
         ax.plot(xs, ys)
         ax.set_title(f"Lp unit ball p={p_val}")
         ax.set_aspect("equal")
@@ -247,7 +266,6 @@ if __name__ == "__main__":
     plt.title("Example test functions")
     save_fig("test_functions.png")
 
-
     # --- Discrete semigroup and resolvent estimates ---
     semigroup = DiscreteSemigroup(standard_kernel, key_fn=rd_key, cache={})
     resolvent = DiscreteResolvent(standard_kernel, lam=0.9, key_fn=rd_key, cache={})
@@ -293,7 +311,7 @@ if __name__ == "__main__":
     sns.barplot(data=res_df, x="lambda", y="value", hue="function")
     plt.title("Discrete resolvent estimates U_λ f(x0)")
     save_fig("discrete_resolvent.png")
-    
+
     # --- Continuous semigroup and resolvent ---
     dt = 0.2
     cont_semigroup = ContinuousSemigroup(standard_kernel, dt=dt)
@@ -344,7 +362,9 @@ if __name__ == "__main__":
         compare_rows.append(
             {
                 "alpha": alpha,
-                "value": cont.estimate_Ralpha(f_common, origin_1d, n_paths=800, seed=5000),
+                "value": cont.estimate_Ralpha(
+                    f_common, origin_1d, n_paths=800, seed=5000
+                ),
                 "type": "continuous",
             }
         )
@@ -368,14 +388,18 @@ if __name__ == "__main__":
         sem_rows.append(
             {
                 "t": t,
-                "value": semigroup.estimate_Tn(f_common, origin_1d, n=n, n_samples=800, seed=6000),
+                "value": semigroup.estimate_Tn(
+                    f_common, origin_1d, n=n, n_samples=800, seed=6000
+                ),
                 "type": "discrete",
             }
         )
         sem_rows.append(
             {
                 "t": t,
-                "value": cont_semigroup.estimate_Pt(f_common, origin_1d, t=t, n_samples=800, seed=6000),
+                "value": cont_semigroup.estimate_Pt(
+                    f_common, origin_1d, t=t, n_samples=800, seed=6000
+                ),
                 "type": "continuous",
             }
         )
@@ -443,8 +467,10 @@ if __name__ == "__main__":
 
     # --- Martingale check ---
     generator = SampledGenerator(semigroup=semigroup, dt=1.0)
+
     def Af_fn(x):
         return generator.estimate_Af(f_common, x, n_samples=500, seed=9200)
+
     mn_estimate = check_discrete_martingale(
         standard_kernel,
         Af=Af_fn,
