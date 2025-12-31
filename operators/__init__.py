@@ -2,13 +2,12 @@ from .adjoint import (
     AdjointGenerator,
     ClosedFormDiffusionAdjoint1D,
     FiniteStateCTMCAdjoint,
-    StationaryDistributionSolver,
     black_scholes_adjoint_1d,
     ou_adjoint_1d,
 )
 from .continuous_versions import ContinuousResolvent, ContinuousSemigroup
 from .forward import ForwardEquation
-from .generators import ClosedFormGenerator, Generator, SampledGenerator
+from .generators import ClosedFormGenerator, Generator, SampledGenerator, FiniteStateCTMCGenerator
 from .discrete_resolvent import DiscreteResolvent
 from .discrete_semigroup import DiscreteSemigroup
 from .test_functions import (
@@ -30,6 +29,9 @@ from .custom_types import (
     Observable,
     Scalar,
 )
+from .stationary_dist import (
+    StationaryDistributionSolver,
+)
 
 __all__ = [
     "AdjointGenerator",
@@ -44,6 +46,7 @@ __all__ = [
     "ClosedFormGenerator",
     "Generator",
     "SampledGenerator",
+    "FiniteStateCTMCGenerator"
     "DiscreteResolvent",
     "DiscreteSemigroup",
     "complex_exponential",

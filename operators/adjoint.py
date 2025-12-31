@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Callable, Generic, Protocol, Sequence, TypeVar
-import random
 
 from core_interfaces import Density
 from .custom_types import DensityVector
@@ -120,73 +119,17 @@ class FiniteStateCTMCAdjoint(Generic[X], AdjointGenerator[DensityVector, Any]):
             "FiniteStateCTMCAdjoint expects an explicit density vector."
         )
 
+    def apply_to_function(self, f: Callable[[X], float]) -> list[float]:
+        values = [float(f(state)) for state in self.states]
+        n = len(self.states)
+        result = [0.0 for _ in range(n)]
+        for i in range(n):
+            total = 0.0
+            for j in range(n):
+                total += self._rates[i][j] * values[j]
+            result[i] = total
+        return result
 
-def _normalize_density_vector(p: DensityVector) -> list[float]:
-    total = float(sum(p))
-    if total <= 0:
-        raise ValueError("density must have positive total mass")
-    return [float(pi) / total for pi in p]
 
 
-@dataclass(slots=True)
-class StationaryDistributionSolver(Generic[X]):
-    """Solve A^{*} p_{\infty} = 0 by averaging forward density evolution."""
 
-    adjoint: AdjointGenerator[DensityVector, Any]
-    states: Sequence[X]
-    dt: float = 0.05
-
-    def __post_init__(self) -> None:
-        if self.dt <= 0:
-            raise ValueError("dt must be > 0")
-        if not self.states:
-            raise ValueError("states must be nonempty")
-
-    def _step(self, p: DensityVector) -> list[float]:
-        adjoint_p = self.adjoint.apply_to_density(p)
-        updated = [pi + self.dt * dpi for pi, dpi in zip(p, adjoint_p)]
-        return _normalize_density_vector(updated)
-
-    def solve_truncated(
-        self, p0: DensityVector, *, lam: float, n_steps: int
-    ) -> list[float]:
-        """Truncated geometric-weighted average of densities."""
-        if not (0.0 < lam < 1.0):
-            raise ValueError("lam must be in (0, 1)")
-        if n_steps <= 0:
-            raise ValueError("n_steps must be > 0")
-        if len(p0) != len(self.states):
-            raise ValueError("initial density length must match states")
-        p = _normalize_density_vector(p0)
-        total = [0.0 for _ in range(len(self.states))]
-        weight = 1.0
-        for _ in range(n_steps):
-            for i in range(len(self.states)):
-                total[i] += weight * p[i]
-            p = self._step(p)
-            weight *= lam
-        return _normalize_density_vector([(1.0 - lam) * ti for ti in total])
-
-    def solve_geometric(
-        self,
-        p0: DensityVector,
-        *,
-        lam: float,
-        rng: random.Random | None = None,
-        seed: int | None = None,
-    ) -> list[float]:
-        """Unbiased geometric-horizon estimator for weighted infinite sum."""
-        if not (0.0 < lam < 1.0):
-            raise ValueError("lam must be in (0, 1)")
-        if len(p0) != len(self.states):
-            raise ValueError("initial density length must match states")
-        rng = rng or random.Random(seed)
-        p = _normalize_density_vector(p0)
-        total = [0.0 for _ in range(len(self.states))]
-        while True:
-            for i in range(len(self.states)):
-                total[i] += p[i]
-            if rng.random() > lam:
-                break
-            p = self._step(p)
-        return _normalize_density_vector([(1.0 - lam) * ti for ti in total])

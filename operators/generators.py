@@ -202,5 +202,43 @@ class ClosedFormGenerator(Generic[X]):
                 total += aij * b[i][j]
         return float(total)
 
+@dataclass(slots=True)
+class FiniteStateCTMCGenerator(Generic[X]):
+    """Generator for a finite-state CTMC with rate matrix Q."""
 
-Generator: TypeAlias = SampledGenerator[X] | ClosedFormGenerator[X]
+    states: Sequence[X]
+    rate_matrix: Sequence[Sequence[float]]
+    domain: Optional[GeneratorDomain[X]] = None
+    source: GeneratorSource = field(default=GeneratorSource.CLOSED_FORM, init=False)
+
+    _index: dict[X, int] = field(init=False, repr=False)
+    _rates: list[list[float]] = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        n = len(self.states)
+        if n == 0:
+            raise ValueError("states must be nonempty")
+        if any(len(row) != n for row in self.rate_matrix):
+            raise ValueError("rate_matrix must be square (n x n)")
+        self._index = {state: i for i, state in enumerate(self.states)}
+        self._rates = [[float(v) for v in row] for row in self.rate_matrix]
+        for i in range(n):
+            row_sum = sum(self._rates[i][j] for j in range(n) if j != i)
+            if abs(self._rates[i][i] + row_sum) > 1e-9:
+                self._rates[i][i] = -row_sum
+
+    def estimate_Af(self, f: Observable[X], x0: X) -> Scalar:
+        if self.domain is not None and f not in self.domain:
+            raise ValueError(
+                "f must belong to the (rich) class of nicely behaving functions."
+            )
+        if x0 not in self._index:
+            raise ValueError("x0 must be in states")
+        values = [float(f(state)) for state in self.states]
+        i = self._index[x0]
+        total = 0.0
+        for j, qij in enumerate(self._rates[i]):
+            total += qij * values[j]
+        return float(total)
+    
+Generator: TypeAlias = SampledGenerator[X] | ClosedFormGenerator[X] | FiniteStateCTMCGenerator[X]

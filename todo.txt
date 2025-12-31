@@ -1,7 +1,7 @@
 TODO: 29/12/2025 implementations and questions:
     explore implication of link from markov chains to martingales again, does it only then mean we can speak of the theory below?
         if we know A on a "rich" class of f then we get a function in A and f that is a Martingale, what is this knowing on a rich class
-    what stability is found when we have Af <= -cf + b as opposed to stability of distribution spoken of below?
+    what stability is found when we have Foster-Lyapunov drift condition as opposed to stability of distribution spoken of below?
     implement QM methods for solving Fokker-Planck by using analog to schrödinger's equation
     create a trigger that sees when FP eq only shows overdamped dynamics, i.e., only 2nd order partials w.r.t. spatial variables
         we should then be able to write down a master equation and easily solve it numerically
@@ -57,4 +57,3 @@ TODO: 29/12/2025 implementations and questions:
             they might now just be the discrete with time step going towards zero
         that the core interfaces are correct, maybe this needs to be modularized / refactored
     Create a completely new demo with the current stuff where we build everything starting from a markov chain and we do not do checks, but plots
-    
