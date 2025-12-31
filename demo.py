@@ -164,7 +164,74 @@ if __name__ == "__main__":
         )
         anim.save(gif_path, writer=animation.PillowWriter(fps=12))
         plt.close(fig)
+        
+    def animate_paths_r3(
+        paths: dict[str, list[PointRd]], title: str, filename: str
+    ) -> None:
+        labels = list(paths.keys())
+        coords = {
+            label: (
+                [float(p[0]) for p in path],
+                [float(p[1]) for p in path],
+                [float(p[2]) for p in path],
+            )
+            for label, path in paths.items()
+        }
+        x_min = min(min(xs) for xs, _ys, _zs in coords.values())
+        x_max = max(max(xs) for xs, _ys, _zs in coords.values())
+        y_min = min(min(ys) for _xs, ys, _zs in coords.values())
+        y_max = max(max(ys) for _xs, ys, _zs in coords.values())
+        z_min = min(min(zs) for _xs, _ys, zs in coords.values())
+        z_max = max(max(zs) for _xs, _ys, zs in coords.values())
+        pad = 0.2
+        min_len = min(len(path) for path in paths.values())
+        frame_indices = list(range(2, min_len + 1, 4))
+        colors = plt.cm.tab10(range(len(labels)))
+        fig = plt.figure(figsize=(6, 5))
+        ax = fig.add_subplot(111, projection="3d")
 
+        def update_multi(frame_idx: int):
+            ax.cla()
+            for color, label in zip(colors, labels):
+                xs, ys, zs = coords[label]
+                ax.plot(
+                    xs[:frame_idx],
+                    ys[:frame_idx],
+                    zs[:frame_idx],
+                    linewidth=1.2,
+                    color=color,
+                )
+                ax.scatter(xs[0], ys[0], zs[0], c=[color], s=18, marker="o")
+                ax.scatter(
+                    xs[frame_idx - 1],
+                    ys[frame_idx - 1],
+                    zs[frame_idx - 1],
+                    c=[color],
+                    s=22,
+                    marker="x",
+                )
+            ax.set_xlim(x_min - pad, x_max + pad)
+            ax.set_ylim(y_min - pad, y_max + pad)
+            ax.set_zlim(z_min - pad, z_max + pad)
+            ax.set_title(title)
+            ax.set_xlabel("x")
+            ax.set_ylabel("y")
+            ax.set_zlabel("z")
+            ax.legend(labels, loc="upper left", fontsize=8)
+            ax.view_init(elev=20, azim=35)
+            return []
+
+        gif_path = os.path.join(output_dir, filename)
+        anim = animation.FuncAnimation(
+            fig,
+            update_multi,
+            frames=frame_indices,
+            interval=80,
+            blit=False,
+        )
+        anim.save(gif_path, writer=animation.PillowWriter(fps=12))
+        plt.close(fig)
+        
     def animate_paths_r2(
         paths: dict[str, list[PointRd]], title: str, filename: str
     ) -> None:
@@ -324,6 +391,7 @@ if __name__ == "__main__":
         "uniform_ball": UniformBallRandomWalkKernelRd(radius=0.6),
     }
     alt_paths_2d = {}
+    alt_paths_3d = {}
     for label, kernel in alt_kernels.items():
         mp_alt_2d = MarkovProcess(
             init=NormalRd(mean=(0.0, 0.0), std=0.4),
@@ -343,6 +411,7 @@ if __name__ == "__main__":
             kernel=kernel,
         )
         alt_path_3d = mp_alt_3d.sample_path(220, rng=random.Random(21))
+        alt_paths_3d[label] = alt_path_3d
         animate_path_r3(
             alt_path_3d,
             f"{label.replace('_', ' ').title()} random walk in R^3 (evolution)",
@@ -352,6 +421,11 @@ if __name__ == "__main__":
         alt_paths_2d,
         "Random walk kernels in R^2 (evolution)",
         "kernels_random_walk_r2_evolution.gif",
+    )
+    animate_paths_r3(
+        alt_paths_3d,
+        "Random walk kernels in R^3 (evolution)",
+        "kernels_random_walk_r3_evolution.gif",
     )
 
     # --- LpMetricRd for p=1,2,inf ---
