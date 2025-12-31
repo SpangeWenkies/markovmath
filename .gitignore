@@ -4,3 +4,4 @@ __pycache__/
 *$py.class
 /.venv/
 demo_outputs/
+*.DS_STORE
