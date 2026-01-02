@@ -1,8 +1,8 @@
 from typing import List, TypeVar, Callable, Sequence, TypeAlias, Optional
 import math
 
-PointRd: TypeAlias = tuple[float, ...]
-MutablePointRd: TypeAlias = list[float]
+Vector: TypeAlias = tuple[float, ...]
+MutableVector: TypeAlias = list[float]
 Matrix: TypeAlias = tuple[tuple[float, ...], ...]
 MutableMatrix: TypeAlias = list[list[float]]
 
@@ -17,12 +17,12 @@ def to_immutable(mat: MutableMatrix) -> Matrix:
     """Convert a mutable list-of-lists matrix to an immutable tuple-of-tuples."""
     return tuple(tuple(row) for row in mat)
 
-def to_mutable_point(p: PointRd) -> MutablePointRd:
-    """Convert an immutable point (tuple) to a mutable list."""
+def to_mutable_point(p: Vector) -> MutableVector:
+    """Convert an immutable vector (tuple) to a mutable list."""
     return list(p)
 
-def to_immutable_point(p: Sequence[float]) -> PointRd:
-    """Convert a sequence of floats to an immutable point (tuple)."""
+def to_immutable_point(p: Sequence[float]) -> Vector:
+    """Convert a sequence of floats to an immutable vector (tuple)."""
     return tuple(float(v) for v in p)
 
 
@@ -40,7 +40,7 @@ def _validate_corr_matrix(corr: List[List[float]], tol: float = 1e-12) -> None:
                 raise ValueError("corr entries must be in [-1, 1]")
 
 
-def cov_from_stds_and_corr(stds: PointRd, corr: List[List[float]]) -> List[List[float]]:
+def cov_from_stds_and_corr(stds: Vector, corr: List[List[float]]) -> List[List[float]]:
     _validate_corr_matrix(corr)
     d = len(stds)
     if len(corr) != d:
