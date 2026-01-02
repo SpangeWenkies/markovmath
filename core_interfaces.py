@@ -30,6 +30,8 @@ NonNegativeFloat = Annotated[float, ">=0"]
 
 PositiveFloat = Annotated[float, ">0"]
 
+PositiveRd = Annotated[PointRd, ">0"]
+
 # TODO: finalize a contract testing file holding axiom checks by runtime / property-based tests
 
 # TODO: would it be handy to use from typing the import Iterable
@@ -306,7 +308,7 @@ class CorrelatedGaussianNoiseRd:
         A correlation matrix needs to be only positive semi definite, symmetric and diagonal one
     """
 
-    stds: PointRd
+    stds: PositiveRd
     corr: Tuple[Tuple[float, ...], ...]
     _chol: Tuple[Tuple[float, ...], ...] = field(init=False, repr=False)
 
@@ -316,7 +318,7 @@ class CorrelatedGaussianNoiseRd:
         L = cholesky_spd(cov)
         object.__setattr__(self, "_chol", tuple(tuple(row) for row in L))
 
-    def sample(self, rng: random.Random) -> PointRd:
+    def sample(self, rng: random.Random) -> PositiveRd:
         d = len(self.stds)
         z = [rng.gauss(0.0, 1.0) for _ in range(d)]  # iid N(0,1)
         y = [0.0] * d
