@@ -329,22 +329,22 @@ class CorrelatedGaussianNoiseRd:
 
         try:
             L = cholesky_spd(cov)  # exact SPD path
-            object.__setattr__(self, "_factor", tuple(tuple(r) for r in L))
+            object.__setattr__(self, "_factor", L)
             object.__setattr__(self, "_is_lower", True)
             return
-        except ValueError as e:
+        except ValueError:
             # SPD failed → handle PSD or repair
             if self.fallback == "jitter":
                 L = cholesky_with_jitter(
                     cov, eta0=self.jitter0, eta_max=self.jitter_max
                 )
-                object.__setattr__(self, "_factor", tuple(tuple(r) for r in L))
+                object.__setattr__(self, "_factor", L)
                 object.__setattr__(self, "_is_lower", True)
                 return
 
             # mathematically clean PSD path
             B = psd_factor_via_eigh(cov)
-            object.__setattr__(self, "_factor", tuple(tuple(r) for r in B))
+            object.__setattr__(self, "_factor", B)
             object.__setattr__(self, "_is_lower", False)
 
     def sample(self, rng: random.Random) -> PointRd:
