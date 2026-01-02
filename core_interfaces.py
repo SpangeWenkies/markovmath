@@ -309,7 +309,7 @@ class RandomWalkKernelRd(MarkovKernel[PointRd]):
 @dataclass(frozen=True, slots=True)
 class CorrelatedGaussianNoiseRd:
     """
-    Sample eps ~ N(0, \Sigma ) on R^d where \Sigma = D R D (stds + corr).
+    Sample \eps ~ N(0, \Sigma ) on R^d where \Sigma = D R D (stds + corr).
 
     Strategy:
       * If \Sigma is SPD (full rank): use Cholesky (fast).
@@ -320,7 +320,7 @@ class CorrelatedGaussianNoiseRd:
               * add jitter \eta I until Cholesky succeeds (common but changes the model: \Sigma -> \Sigma + \eta I).
     """
 
-    stds: PointRd
+    stds: PointRd   # or should we use positiveRd even though we do handling of bad matrices below?
     corr: Matrix
 
     # If provided corr is indefinite due to estimation/numerics, optionally repair it first.
