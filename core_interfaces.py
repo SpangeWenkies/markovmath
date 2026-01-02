@@ -37,6 +37,8 @@ PositiveFloat = Annotated[float, ">0"]
 
 PositiveRd = Annotated[PointRd, ">0"]
 
+NonNegativeRd = Annotated[PointRd, ">=0"]
+
 Matrix = tuple[tuple[float, ...], ...]  # maybe later on we need a tensor instead of a matrix for certain applications
 
 # TODO: finalize a contract testing file holding axiom checks by runtime / property-based tests
@@ -287,23 +289,25 @@ class RandomWalkKernel(MarkovKernel[float]):
 
 @dataclass(frozen=True, slots=True)
 class NormalRd(Sampler[PointRd]):
-    """N(mean, std^2 I) on R^d (independent coordinates)."""
+    """N(mean, diag(stds^2)) on R^d (independent coordinates)."""
 
     mean: PointRd
-    std: NonNegativeFloat
+    stds: NonNegativeRd
 
     def sample(self, rng: random.Random) -> PointRd:
-        return tuple(rng.gauss(m, self.std) for m in self.mean)
+        if len(self.mean) != len(self.stds):
+            raise ValueError("NormalRd: mean and stds must have same dimension")
+        return tuple(rng.gauss(m, s) for m, s in zip(self.mean, self.stds))
 
 
 @dataclass(frozen=True, slots=True)
 class RandomWalkKernelRd(MarkovKernel[PointRd]):
-    """X_{t+1} = X_t + N(0, step_std^2 I)."""
+    """X_{t+1} = X_t + N(0, diag(step_stds^2))."""
 
-    step_std: NonNegativeFloat
+    step_stds: NonNegativeRd
 
     def law(self, x: PointRd) -> Sampler[PointRd]:
-        return NormalRd(mean=x, std=self.step_std)
+        return NormalRd(mean=x, stds=self.step_stds)
 
 
 @dataclass(frozen=True, slots=True)

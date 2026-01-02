@@ -50,6 +50,8 @@ import os
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
+# TODO: changed NormalRd and random walk for it to use diag(sigma)*I instead of single sigma*I, so arguments must change
+
 if __name__ == "__main__":
     rng = random.Random(0)
     output_dir = "demo_outputs"
