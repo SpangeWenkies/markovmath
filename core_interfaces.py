@@ -320,7 +320,7 @@ class CorrelatedGaussianNoiseRd:
         L = cholesky_spd(cov)
         object.__setattr__(self, "_chol", tuple(tuple(row) for row in L))
 
-    def sample(self, rng: random.Random) -> PositiveRd:
+    def sample(self, rng: random.Random) -> PointRd:
         d = len(self.stds)
         z = [rng.gauss(0.0, 1.0) for _ in range(d)]  # iid N(0,1)
         y = [0.0] * d
