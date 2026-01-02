@@ -305,7 +305,9 @@ class CorrelatedGaussianNoiseRd:
     Samples eps ~ N(0, Σ) on R^d where Σ = D R D (stds + corr).
     Uses cholesky decomp, which means we require positive definite matrices
     TODO: If we want positive semi definite correlation matrix we need to make an eigen/SVD-based sampler
-        A correlation matrix needs to be only positive semi definite, symmetric and diagonal one
+    or do a “nearest PSD” fix / jitter strategy (less mathematically clean but common), i.e., add \eta I until Cholesky succeeds
+    
+    A correlation matrix needs to be only positive semi definite, symmetric and diagonal one
     """
 
     stds: PositiveRd
