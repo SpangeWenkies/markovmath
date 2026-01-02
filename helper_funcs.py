@@ -1,10 +1,15 @@
-from typing import List, TypeVar, Callable, Sequence, TypeAlias, Optional
+from typing import TypeVar, Callable, TypeAlias, Optional
 import math
 
 Vector: TypeAlias = tuple[float, ...]
 MutableVector: TypeAlias = list[float]
+VectorLike: TypeAlias = Vector | MutableVector
+
 Matrix: TypeAlias = tuple[tuple[float, ...], ...]
 MutableMatrix: TypeAlias = list[list[float]]
+MatrixLike: TypeAlias = Matrix | MutableMatrix
+
+EigenDecomposition: TypeAlias = tuple[MutableVector, MutableMatrix]
 
 X = TypeVar("X")
 Observable = Callable[[X], float]
@@ -21,12 +26,12 @@ def to_mutable_point(p: Vector) -> MutableVector:
     """Convert an immutable vector (tuple) to a mutable list."""
     return list(p)
 
-def to_immutable_point(p: Sequence[float]) -> Vector:
+def to_immutable_point(p: VectorLike[float]) -> Vector:
     """Convert a sequence of floats to an immutable vector (tuple)."""
     return tuple(float(v) for v in p)
 
 
-def _validate_corr_matrix(corr: List[List[float]], tol: float = 1e-12) -> None:
+def _validate_corr_matrix(corr: MatrixLike, tol: float = 1e-12) -> None:
     d = len(corr)
     if d == 0 or any(len(row) != d for row in corr):
         raise ValueError("corr must be a nonempty square matrix (d x d)")
@@ -40,7 +45,7 @@ def _validate_corr_matrix(corr: List[List[float]], tol: float = 1e-12) -> None:
                 raise ValueError("corr entries must be in [-1, 1]")
 
 
-def cov_from_stds_and_corr(stds: Vector, corr: List[List[float]]) -> List[List[float]]:
+def cov_from_stds_and_corr(stds: Vector, corr: MatrixLike) -> MutableMatrix:
     _validate_corr_matrix(corr)
     d = len(stds)
     if len(corr) != d:
@@ -48,14 +53,14 @@ def cov_from_stds_and_corr(stds: Vector, corr: List[List[float]]) -> List[List[f
     if any(s < 0 for s in stds):
         raise ValueError("stds must be nonnegative")
 
-    cov = [[0.0] * d for _ in range(d)]
+    cov: MutableMatrix = [[0.0] * d for _ in range(d)]
     for i in range(d):
         for j in range(d):
             cov[i][j] = corr[i][j] * stds[i] * stds[j]
     return cov
 
 
-def cholesky_spd(a: List[List[float]], tol: float = 1e-12) -> List[List[float]]:
+def cholesky_spd(a: MatrixLike, tol: float = 1e-12) -> MutableMatrix:
     """
     Cholesky factorization for symmetric positive definite matrices.
     Returns lower-triangular L such that a = L L^T.
@@ -71,7 +76,7 @@ def cholesky_spd(a: List[List[float]], tol: float = 1e-12) -> List[List[float]]:
             if abs(a[i][j] - a[j][i]) > 1e-9:
                 raise ValueError("matrix must be symmetric for Cholesky")
 
-    L = [[0.0] * d for _ in range(d)]
+    L: MutableMatrix = [[0.0] * d for _ in range(d)]
     for i in range(d):
         for j in range(i + 1):
             s = a[i][j]
@@ -91,13 +96,13 @@ def cholesky_spd(a: List[List[float]], tol: float = 1e-12) -> List[List[float]]:
 # --- Correlation / covariance repair and PSD handling ---
 
 def cholesky_with_jitter(
-    a: List[List[float]],
+    a: MatrixLike,
     *,
     tol: float = 1e-12,
     eta0: float = 1e-12,
     mult: float = 10.0,
     eta_max: float = 1e-3,
-) -> List[List[float]]:
+) -> MutableMatrix:
     """Try Cholesky on (a + eta I) with increasing eta until it succeeds.
 
     This is a common numerical regularization ('jitter' / 'nugget').
@@ -122,11 +127,11 @@ def cholesky_with_jitter(
 
 
 def jacobi_eigh_sym(
-    a: List[List[float]],
+    a: MatrixLike,
     *,
     tol: float = 1e-12,
     max_sweeps: int = 50,
-) -> tuple[List[float], List[List[float]]]:
+) -> EigenDecomposition:
     """Eigen-decomposition of a symmetric matrix via Jacobi rotations.
 
     Returns (eigenvalues, Q) where Q is orthonormal and
@@ -139,10 +144,10 @@ def jacobi_eigh_sym(
         raise ValueError("matrix must be square")
 
     # Work on a mutable copy and enforce symmetry by averaging.
-    A = [[0.5 * (a[i][j] + a[j][i]) for j in range(d)] for i in range(d)]
+    A: MutableMatrix = [[0.5 * (a[i][j] + a[j][i]) for j in range(d)] for i in range(d)]
 
     # Q = I
-    Q = [[0.0] * d for _ in range(d)]
+    Q: MutableMatrix = [[0.0] * d for _ in range(d)]
     for i in range(d):
         Q[i][i] = 1.0
 
@@ -192,15 +197,15 @@ def jacobi_eigh_sym(
             Q[k][p] = c * qkp - s * qkq
             Q[k][q] = s * qkp + c * qkq
 
-    eigvals = [A[i][i] for i in range(d)]
+    eigvals: Vector = [A[i][i] for i in range(d)]
     return eigvals, Q
 
 
 def project_psd_frobenius(
-    a: List[List[float]],
+    a: MatrixLike,
     *,
     tol: float = 1e-12,
-) -> List[List[float]]:
+) -> MutableMatrix:
     """Project a symmetric matrix onto the PSD cone (Frobenius norm).
 
     For symmetric A = QΛQ^T, the projection is Q max(Λ,0) Q^T.
@@ -217,7 +222,7 @@ def project_psd_frobenius(
         else:
             lam[k] = v
 
-    X = [[0.0] * d for _ in range(d)]
+    X: MutableMatrix = [[0.0] * d for _ in range(d)]
     for i in range(d):
         for j in range(d):
             s = 0.0
@@ -233,10 +238,10 @@ def project_psd_frobenius(
 
 
 def psd_factor_from_eigh(
-    a: List[List[float]],
+    a: MatrixLike,
     *,
     tol: float = 1e-12,
-) -> List[List[float]]:
+) -> MutableMatrix:
     """Return B such that a ≈ B B^T for symmetric PSD a.
 
     Uses eigen-decomposition; supports singular (PSD) matrices.
@@ -244,13 +249,13 @@ def psd_factor_from_eigh(
     """
     eigvals, Q = jacobi_eigh_sym(a, tol=tol)
     d = len(a)
-    sqrt_lam = [0.0] * d
+    sqrt_lam: MutableVector = [0.0] * d
     for k, v in enumerate(eigvals):
         if v < -100 * tol:
             raise ValueError(f"matrix not PSD; eigenvalue {v} < 0")
         sqrt_lam[k] = math.sqrt(v) if v > 0.0 else 0.0
     # B = Q diag(sqrt_lam)
-    B = [[Q[i][k] * sqrt_lam[k] for k in range(d)] for i in range(d)]
+    B: MutableMatrix = [[Q[i][k] * sqrt_lam[k] for k in range(d)] for i in range(d)]
     return B
 
 
@@ -285,21 +290,21 @@ def repair_corr_quick(corr: Matrix, *, tol: float = 1e-12) -> Matrix:
     return to_immutable(R)
 
 
-def _frob_norm(a: List[List[float]]) -> float:
+def _frob_norm(a: MatrixLike) -> float:
     return math.sqrt(sum(v * v for row in a for v in row))
 
 
-def _mat_sub(a: List[List[float]], b: List[List[float]]) -> List[List[float]]:
+def _mat_sub(a: MatrixLike, b: MatrixLike) -> MutableMatrix:
     d = len(a)
     return [[a[i][j] - b[i][j] for j in range(d)] for i in range(d)]
 
 
-def _mat_add(a: List[List[float]], b: List[List[float]]) -> List[List[float]]:
+def _mat_add(a: MatrixLike, b: MatrixLike) -> MutableMatrix:
     d = len(a)
     return [[a[i][j] + b[i][j] for j in range(d)] for i in range(d)]
 
 
-def _set_unit_diag(a: List[List[float]]) -> List[List[float]]:
+def _set_unit_diag(a: MatrixLike) -> MutableMatrix:
     d = len(a)
     out = [row[:] for row in a]
     for i in range(d):
@@ -361,7 +366,7 @@ def nearest_psd_correlation_higham(
             Y[i][j] = Y[j][i] = v
     return to_immutable(Y)
 
-def rd_key(x: tuple[float, ...], ndigits: int = 2) -> tuple[float, ...]:
+def rd_key(x: Vector, ndigits: int = 2) -> Vector:
     """Coarse key for R^d points represented as tuples. Rounds to a grid"""
     return tuple(round(xi, ndigits) for xi in x)
 
@@ -371,17 +376,17 @@ def indicator(A: Callable[[X], bool]) -> Observable[X]:
     return lambda x: 1.0 if A(x) else 0.0
 
 
-def _dot(u: Sequence[float], v: Sequence[float]) -> float:
+def _dot(u: VectorLike, v: VectorLike) -> float:
     if len(u) != len(v):
         raise ValueError("dimension mismatch in dot product")
     return float(sum(ui * vi for ui, vi in zip(u, v)))
 
 
-def _as_float_seq(x: object) -> Sequence[float]:
-    """Best-effort conversion to a sequence of floats (for R^d utilities).
+def _as_float_seq(x: object) -> Vector:
+    """Best-effort conversion to an immutable vector (for R^d utilities).
 
     Intended for states represented as tuples/lists of floats.
     """
     if isinstance(x, (tuple, list)):
-        return [float(v) for v in x]
+        return tuple(float(v) for v in x)
     raise TypeError("Expected state to be a tuple/list of floats for this helper.")
