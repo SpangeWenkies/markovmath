@@ -116,8 +116,8 @@ class Measure(Protocol[X, E]):
         ...
 
     def to_density(self) -> Density[X]:
-        """Return a density p(x) if available; raise if not implemented."""
-        raise NotImplementedError("Density representation not available for this measure.")
+        """Return a density p(x) if available; possibly raise if not implemented."""
+        ...
 
 class Sampler(Protocol[X]):
     """Sampling capability."""
@@ -335,103 +335,6 @@ class ShiftedCorrelatedGaussianNoiseRd:
             raise ValueError("dimension mismatch in ShiftedSamplerRd")
         return tuple(self.shift[i] + eps[i] for i in range(len(eps)))
     
-@dataclass(frozen=True, slots=True)
-class ShiftedNoiseRd(Sampler[PointRd]):
-    base: Sampler[PointRd]
-    shift: PointRd
-
-    def sample(self, rng: random.Random) -> PointRd:
-        eps = self.base.sample(rng)
-        if len(eps) != len(self.shift):
-            raise ValueError("dimension mismatch in ShiftedNoiseRd")
-        return tuple(self.shift[i] + eps[i] for i in range(len(eps)))
-
-@dataclass(frozen=True, slots=True)
-class LaplaceNoiseRd(Sampler[PointRd]):
-    dim: int
-    scale: float
-
-    def sample(self, rng: random.Random) -> PointRd:
-        samples = []
-        for _ in range(self.dim):
-            u = rng.random() - 0.5
-            if u == 0.0:
-                samples.append(0.0)
-                continue
-            val = -self.scale * math.copysign(math.log1p(-2.0 * abs(u)), u)
-            samples.append(val)
-        return tuple(samples)
-
-
-@dataclass(frozen=True, slots=True)
-class StudentTNoiseRd(Sampler[PointRd]):
-    dim: int
-    df: float
-    scale: float
-
-    def sample(self, rng: random.Random) -> PointRd:
-        if self.df <= 0:
-            raise ValueError("StudentTNoiseRd requires df > 0")
-        samples = []
-        for _ in range(self.dim):
-            z = rng.gauss(0.0, 1.0)
-            v = rng.gammavariate(self.df / 2.0, 2.0)
-            samples.append(self.scale * z * math.sqrt(self.df / v))
-        return tuple(samples)
-
-
-@dataclass(frozen=True, slots=True)
-class UniformBallNoiseRd(Sampler[PointRd]):
-    dim: int
-    radius: float
-
-    def sample(self, rng: random.Random) -> PointRd:
-        if self.radius < 0:
-            raise ValueError("UniformBallNoiseRd requires radius >= 0")
-        if self.radius == 0:
-            return tuple(0.0 for _ in range(self.dim))
-        while True:
-            direction = [rng.gauss(0.0, 1.0) for _ in range(self.dim)]
-            norm = math.sqrt(sum(x * x for x in direction))
-            if norm > 0:
-                break
-        unit = [x / norm for x in direction]
-        r = self.radius * (rng.random() ** (1.0 / self.dim))
-        return tuple(r * x for x in unit)
-
-
-@dataclass(frozen=True, slots=True)
-class LaplaceRandomWalkKernelRd(MarkovKernel[PointRd]):
-    """X_{t+1} = X_t + Laplace(0, scale) noise (iid by coordinate)."""
-
-    scale: float
-
-    def law(self, x: PointRd) -> Sampler[PointRd]:
-        noise = LaplaceNoiseRd(dim=len(x), scale=self.scale)
-        return ShiftedNoiseRd(base=noise, shift=x)
-
-
-@dataclass(frozen=True, slots=True)
-class StudentTRandomWalkKernelRd(MarkovKernel[PointRd]):
-    """X_{t+1} = X_t + t_df noise (iid by coordinate)."""
-
-    df: float
-    scale: float
-
-    def law(self, x: PointRd) -> Sampler[PointRd]:
-        noise = StudentTNoiseRd(dim=len(x), df=self.df, scale=self.scale)
-        return ShiftedNoiseRd(base=noise, shift=x)
-
-
-@dataclass(frozen=True, slots=True)
-class UniformBallRandomWalkKernelRd(MarkovKernel[PointRd]):
-    """X_{t+1} = X_t + U(B(0, radius)) noise."""
-
-    radius: float
-
-    def law(self, x: PointRd) -> Sampler[PointRd]:
-        noise = UniformBallNoiseRd(dim=len(x), radius=self.radius)
-        return ShiftedNoiseRd(base=noise, shift=x)
 
 @dataclass(frozen=True, slots=True)
 class DriftingCorrelatedGaussianRandomWalkKernelRd:
