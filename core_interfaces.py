@@ -12,12 +12,13 @@ from typing import (
     Literal,
 )
 from helper_funcs import (
-    cholesky_spd,
+    to_mutable,
     cov_from_stds_and_corr,
+    cholesky_spd,
     cholesky_with_jitter,
-    psd_factor_via_eigh,
-    matvec_lower,
-    matvec,
+    psd_factor_from_eigh,
+    repair_corr_quick,
+    nearest_psd_correlation_higham,
 )
 import random
 import math
@@ -308,15 +309,27 @@ class RandomWalkKernelRd(MarkovKernel[PointRd]):
 @dataclass(frozen=True, slots=True)
 class CorrelatedGaussianNoiseRd:
     """
-    Samples eps ~ N(0, Σ) on R^d where Σ = D R D (stds + corr).
-    
-    If covariance is symmetric and PD -> Cholesky wins (fastest)
-    If covariance is PSD (singular) -> eigen-factor samples the exact degenerate Gaussian
-    If covariance is “almost SPD but numerically bad” -> jitter option makes it work (common), but you’re sampling a slightly different Gaussian
+    Sample eps ~ N(0, \Sigma ) on R^d where \Sigma = D R D (stds + corr).
+
+    Strategy:
+      * If \Sigma is SPD (full rank): use Cholesky (fast).
+      * If Cholesky fails:
+          - optionally repair corr to a nearest PSD correlation matrix using quick projection and clamp or use Higham/Dykstra, then retry.
+          - then either:
+              * eigen-based PSD factor sampling (mathematically correct for PSD / degenerate Gaussians), or
+              * add jitter \eta I until Cholesky succeeds (common but changes the model: \Sigma -> \Sigma + \eta I).
     """
-    stds: PositiveRd
+
+    stds: PointRd
     corr: Matrix
+
+    # If provided corr is indefinite due to estimation/numerics, optionally repair it first.
+    repair: Literal["none", "quick", "higham"] = "none"
+
+    # Fallback when Cholesky still fails (e.g. PSD/singular or numerically unstable).
     fallback: Literal["eigen", "jitter"] = "eigen"
+
+    # Jitter settings (used only when fallback == 'jitter').
     jitter0: float = 1e-12
     jitter_max: float = 1e-3
 
@@ -324,36 +337,75 @@ class CorrelatedGaussianNoiseRd:
     _is_lower: bool = field(init=False, repr=False)
 
     def __post_init__(self):
-        corr_list = [list(row) for row in self.corr]
+        # build covariance from stds + corr (validates corr structure)
+        corr_list = to_mutable(self.corr)
         cov = cov_from_stds_and_corr(self.stds, corr_list)
 
+        # 1) Try the fast SPD route.
         try:
-            L = cholesky_spd(cov)  # exact SPD path
-            object.__setattr__(self, "_factor", L)
+            L = cholesky_spd(cov)
+            object.__setattr__(self, "_factor", tuple(tuple(row) for row in L))
             object.__setattr__(self, "_is_lower", True)
             return
-        except ValueError:
-            # SPD failed → handle PSD or repair
-            if self.fallback == "jitter":
-                L = cholesky_with_jitter(
-                    cov, eta0=self.jitter0, eta_max=self.jitter_max
-                )
-                object.__setattr__(self, "_factor", L)
+        except ValueError as e_spd:
+            spd_err = e_spd
+
+        # 2) Optional repair of corr, then retry Cholesky.
+        repaired = None
+        if self.repair == "quick":
+            repaired = repair_corr_quick(self.corr)
+        elif self.repair == "higham":
+            repaired = nearest_psd_correlation_higham(self.corr)
+
+        if repaired is not None:
+            cov2 = cov_from_stds_and_corr(self.stds, to_mutable(repaired))
+            try:
+                L = cholesky_spd(cov2)
+                object.__setattr__(self, "_factor", tuple(tuple(row) for row in L))
                 object.__setattr__(self, "_is_lower", True)
                 return
+            except ValueError as e_spd2:
+                spd_err = e_spd2
+                cov = cov2  # continue fallbacks from repaired covariance
 
-            # mathematically clean PSD path
-            B = psd_factor_via_eigh(cov)
-            object.__setattr__(self, "_factor", B)
-            object.__setattr__(self, "_is_lower", False)
+        # 3) Fallback for PSD or numerically troublesome matrices.
+        if self.fallback == "jitter":
+            L = cholesky_with_jitter(cov, eta0=self.jitter0, eta_max=self.jitter_max)
+            object.__setattr__(self, "_factor", tuple(tuple(row) for row in L))
+            object.__setattr__(self, "_is_lower", True)
+            return
+
+        # eigen-based PSD factorization (supports singular covariances)
+        try:
+            B = psd_factor_from_eigh(cov)
+        except ValueError as e_psd:
+            raise ValueError(
+                f"Covariance is neither SPD nor PSD (even after optional repair). "
+                f"Cholesky error was: {spd_err}. PSD factorization error was: {e_psd}"
+            ) from e_psd
+        object.__setattr__(self, "_factor", tuple(tuple(row) for row in B))
+        object.__setattr__(self, "_is_lower", False)
 
     def sample(self, rng: random.Random) -> PointRd:
         d = len(self.stds)
-        z = [rng.gauss(0.0, 1.0) for _ in range(d)]
+        z = [rng.gauss(0.0, 1.0) for _ in range(d)]  # iid N(0,1)
+
         if self._is_lower:
-            y = matvec_lower(self._factor, z)
-        else:
-            y = matvec(self._factor, z)
+            # y = L z (lower-triangular)
+            y = [0.0] * d
+            for i in range(d):
+                s = 0.0
+                Li = self._factor[i]
+                for j in range(i + 1):
+                    s += Li[j] * z[j]
+                y[i] = s
+            return tuple(y)
+
+        # y = B z (dense factor from eigen-decomp)
+        y = [0.0] * d
+        for i in range(d):
+            row = self._factor[i]
+            y[i] = sum(row[j] * z[j] for j in range(d))
         return tuple(y)
 
 @dataclass(frozen=True, slots=True)
