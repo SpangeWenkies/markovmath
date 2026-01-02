@@ -9,6 +9,7 @@ from typing import (
     TypeAlias,
     Any,
     Tuple,
+    Annotated,
 )
 from helper_funcs import (
     cov_from_stds_and_corr,
@@ -24,6 +25,10 @@ E = TypeVar("E")  # event representation
 PointRd: TypeAlias = tuple[float, ...]
 
 Density: TypeAlias = Callable[[X], float]
+
+NonNegativeFloat = Annotated[float, ">=0"]
+
+PositiveFloat = Annotated[float, ">0"]
 
 # TODO: finalize a contract testing file holding axiom checks by runtime / property-based tests
 
@@ -92,7 +97,7 @@ class MetricSpace(Protocol[X]):
     # contract is s.t. user must promise to deliver a correct metric
     # python can only force that the dist method exists and its correct arguments must be delivered
     # TODO: insert metric axioms in this comment or inside some error handling
-    def dist(self, a: X, b: X) -> float: ...
+    def dist(self, a: X, b: X) -> NonNegativeFloat: ...
 
 
 class MeasurableSpace(Protocol[X, E]):
@@ -110,7 +115,7 @@ class Measure(Protocol[X, E]):
     # TODO: insert measure axioms in comment or error message
     def measure(
         self, event: E
-    ) -> float: ...  # here is the function for the actual mapping the measure does and must be non-neg. target
+    ) -> NonNegativeFloat: ...  # here is the function for the actual mapping the measure does and must be non-neg. target
     def has_density(self) -> bool:
         """Return True if a density representation is available for this measure."""
         ...
@@ -178,7 +183,7 @@ class StdBorelSpaceRd(MeasurableSpace[PointRd, Event[PointRd]]):
     def empty(self) -> Event[PointRd]:
         return EmptyEvent()
 
-    def ball(self, center: PointRd, radius: float) -> Event[PointRd]:
+    def ball(self, center: PointRd, radius: PositiveFloat) -> Event[PointRd]:
         return OpenBall(center=center, radius=radius, metric=self.metric)
 
 
@@ -186,7 +191,7 @@ class StdBorelSpaceRd(MeasurableSpace[PointRd, Event[PointRd]]):
 class OpenBall(Generic[X]):
     # represents open ball with center and radius on a space equiped with some metric defined by the metric space
     center: X
-    radius: float
+    radius: PositiveFloat
     metric: MetricSpace[X]
 
     # callable returns if x is member of the open ball
@@ -255,7 +260,7 @@ class LpMetricRd(MetricSpace[PointRd]):
 class Normal(Sampler[float]):
     # makes the sampler a gaussian sampler
     mean: float
-    std: float
+    std: NonNegativeFloat
 
     def sample(self, rng: random.Random) -> float:
         return rng.gauss(self.mean, self.std)
@@ -265,7 +270,7 @@ class Normal(Sampler[float]):
 class RandomWalkKernel(MarkovKernel[float]):
     # makes a transition kernel one that uses a gaussian random walk
     # given current state x, the next state is normal(x,step_std)
-    step_std: float
+    step_std: NonNegativeFloat
 
     def law(self, x: float) -> Sampler[float]:
         return Normal(mean=x, std=self.step_std)
@@ -276,7 +281,7 @@ class NormalRd(Sampler[PointRd]):
     """N(mean, std^2 I) on R^d (independent coordinates)."""
 
     mean: PointRd
-    std: float
+    std: NonNegativeFloat
 
     def sample(self, rng: random.Random) -> PointRd:
         return tuple(rng.gauss(m, self.std) for m in self.mean)
@@ -286,7 +291,7 @@ class NormalRd(Sampler[PointRd]):
 class RandomWalkKernelRd(MarkovKernel[PointRd]):
     """X_{t+1} = X_t + N(0, step_std^2 I)."""
 
-    step_std: float
+    step_std: NonNegativeFloat
 
     def law(self, x: PointRd) -> Sampler[PointRd]:
         return NormalRd(mean=x, std=self.step_std)

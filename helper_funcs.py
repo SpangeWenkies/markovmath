@@ -11,11 +11,12 @@ def _validate_corr_matrix(corr: List[List[float]], tol: float = 1e-12) -> None:
     if d == 0 or any(len(row) != d for row in corr):
         raise ValueError("corr must be a nonempty square matrix (d x d)")
     for i in range(d):
-        if abs(corr[i][i] - 1.0) > 1e-9:
+        if abs(corr[i][i] - 1.0) > tol:
             raise ValueError(f"corr diagonal must be 1; corr[{i}][{i}]={corr[i][i]}")
-        for j in range(d):
-            if abs(corr[i][j] - corr[j][i]) > 1e-9:
+        for j in range(i + 1, d):
+            if abs(corr[i][j] - corr[j][i]) > tol:
                 raise ValueError("corr must be symmetric")
+        for j in range(d):
             if corr[i][j] < -1.0 - tol or corr[i][j] > 1.0 + tol:
                 raise ValueError("corr entries must be in [-1, 1]")
 
