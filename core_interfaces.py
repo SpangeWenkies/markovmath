@@ -8,12 +8,16 @@ from typing import (
     runtime_checkable,
     TypeAlias,
     Any,
-    Tuple,
     Annotated,
+    Literal,
 )
 from helper_funcs import (
-    cov_from_stds_and_corr,
     cholesky_spd,
+    cov_from_stds_and_corr,
+    cholesky_with_jitter,
+    psd_factor_via_eigh,
+    matvec_lower,
+    matvec,
 )
 import random
 import math
@@ -22,7 +26,7 @@ X = TypeVar("X")  # element / point
 E = TypeVar("E")  # event representation
 
 # in R^d do not use np.array as these are not hashable, do Point = tuple[float, ...] of length d
-PointRd: TypeAlias = tuple[float, ...]
+PointRd: TypeAlias = tuple[float, ...]  # note we need python version >= 3.9 for this, otherwise we need Tuple from typing
 
 Density: TypeAlias = Callable[[X], float]
 
@@ -31,6 +35,8 @@ NonNegativeFloat = Annotated[float, ">=0"]
 PositiveFloat = Annotated[float, ">0"]
 
 PositiveRd = Annotated[PointRd, ">0"]
+
+Matrix = tuple[tuple[float, ...], ...]  # maybe later on we need a tensor instead of a matrix for certain applications
 
 # TODO: finalize a contract testing file holding axiom checks by runtime / property-based tests
 
@@ -303,34 +309,51 @@ class RandomWalkKernelRd(MarkovKernel[PointRd]):
 class CorrelatedGaussianNoiseRd:
     """
     Samples eps ~ N(0, Σ) on R^d where Σ = D R D (stds + corr).
-    Uses cholesky decomp, which means we require positive definite matrices
-    TODO: If we want positive semi definite correlation matrix we need to make an eigen/SVD-based sampler
-    or do a “nearest PSD” fix / jitter strategy (less mathematically clean but common), i.e., add \eta I until Cholesky succeeds
     
-    A correlation matrix needs to be only positive semi definite, symmetric and diagonal one
+    If covariance is symmetric and PD -> Cholesky wins (fastest)
+    If covariance is PSD (singular) -> eigen-factor samples the exact degenerate Gaussian
+    If covariance is “almost SPD but numerically bad” -> jitter option makes it work (common), but you’re sampling a slightly different Gaussian
     """
-
     stds: PositiveRd
-    corr: Tuple[Tuple[float, ...], ...]
-    _chol: Tuple[Tuple[float, ...], ...] = field(init=False, repr=False)
+    corr: Matrix
+    fallback: Literal["eigen", "jitter"] = "eigen"
+    jitter0: float = 1e-12
+    jitter_max: float = 1e-3
+
+    _factor: Matrix = field(init=False, repr=False)
+    _is_lower: bool = field(init=False, repr=False)
 
     def __post_init__(self):
         corr_list = [list(row) for row in self.corr]
         cov = cov_from_stds_and_corr(self.stds, corr_list)
-        L = cholesky_spd(cov)
-        object.__setattr__(self, "_chol", tuple(tuple(row) for row in L))
+
+        try:
+            L = cholesky_spd(cov)  # exact SPD path
+            object.__setattr__(self, "_factor", tuple(tuple(r) for r in L))
+            object.__setattr__(self, "_is_lower", True)
+            return
+        except ValueError as e:
+            # SPD failed → handle PSD or repair
+            if self.fallback == "jitter":
+                L = cholesky_with_jitter(
+                    cov, eta0=self.jitter0, eta_max=self.jitter_max
+                )
+                object.__setattr__(self, "_factor", tuple(tuple(r) for r in L))
+                object.__setattr__(self, "_is_lower", True)
+                return
+
+            # mathematically clean PSD path
+            B = psd_factor_via_eigh(cov)
+            object.__setattr__(self, "_factor", tuple(tuple(r) for r in B))
+            object.__setattr__(self, "_is_lower", False)
 
     def sample(self, rng: random.Random) -> PointRd:
         d = len(self.stds)
-        z = [rng.gauss(0.0, 1.0) for _ in range(d)]  # iid N(0,1)
-        y = [0.0] * d
-        # y = L z
-        for i in range(d):
-            s = 0.0
-            Li = self._chol[i]
-            for j in range(i + 1):
-                s += Li[j] * z[j]
-            y[i] = s
+        z = [rng.gauss(0.0, 1.0) for _ in range(d)]
+        if self._is_lower:
+            y = matvec_lower(self._factor, z)
+        else:
+            y = matvec(self._factor, z)
         return tuple(y)
 
 @dataclass(frozen=True, slots=True)
