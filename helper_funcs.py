@@ -23,6 +23,10 @@ def _validate_corr_matrix(corr: List[List[float]], tol: float = 1e-12) -> None:
 
 def cov_from_stds_and_corr(stds: Point, corr: List[List[float]]) -> List[List[float]]:
     _validate_corr_matrix(corr)
+   
+    # If any stds[i] == 0, then the covariance becomes singular (PSD, not PD). 
+    # later Cholesky requires PD, so zero stds will often fail unless we handle PSD sampling.
+   
     d = len(stds)
     if len(corr) != d:
         raise ValueError("stds length and corr dimension must match")
@@ -40,7 +44,7 @@ def cholesky_spd(a: List[List[float]], tol: float = 1e-12) -> List[List[float]]:
     """
     Cholesky factorization for symmetric positive definite matrices.
     Returns lower-triangular L such that a = L L^T.
-    Raises ValueError if a is not SPD (within tolerance).
+    Raises ValueError if a is not symmetric positive definite (within tolerance).
     """
     d = len(a)
     if any(len(row) != d for row in a):
@@ -61,7 +65,7 @@ def cholesky_spd(a: List[List[float]], tol: float = 1e-12) -> List[List[float]]:
             if i == j:
                 if s <= tol:
                     raise ValueError(
-                        "matrix not SPD (nonpositive pivot); check corr/stds"
+                        "matrix not SPD (symmetric positive definite); check corr/stds"
                     )
                 L[i][j] = math.sqrt(s)
             else:
