@@ -455,7 +455,7 @@ class LawEvolution(Protocol[X, E]):
       - Semigroup/consistency assumptions are left to solver documentation.
     """
 
-    def evolve_law(self, mu0: ProbabilityMeasure[X, E], t: float) -> ProbabilityMeasure[X, E]: ...
+    def evolve_law(self, mu0: ProbabilityMeasure[X, E], t: NonNegativeFloat) -> ProbabilityMeasure[X, E]: ...
 
 
 class DensityEvolution(Protocol[X]):
@@ -468,7 +468,7 @@ class DensityEvolution(Protocol[X]):
       - p_t is nonnegative and integrates to 1 for all t.
     """
 
-    def evolve_density(self, p0: Density[X], t: float) -> Density[X]: ...
+    def evolve_density(self, p0: Density[X], t: NonNegativeFloat) -> Density[X]: ...
 
 
 # ---------- Keys (for canonicalization/dedup in the AST (Abstract Syntax Tree)) ----------
