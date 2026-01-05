@@ -1,14 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Generic, Protocol, Sequence, TypeVar
+from typing import Any, Callable, Generic, Protocol, Sequence
 
-from core_interfaces import Density
-from .custom_types import DensityVector
-
-DensityLike = TypeVar("DensityLike")
-LawLike = TypeVar("LawLike")
-X = TypeVar("X")
+from .custom_types import Density, DensityLike, DensityVector, LawLike, X
 
 
 class AdjointGenerator(Protocol[DensityLike, LawLike]):
@@ -129,7 +124,3 @@ class FiniteStateCTMCAdjoint(Generic[X], AdjointGenerator[DensityVector, Any]):
                 total += self._rates[i][j] * values[j]
             result[i] = total
         return result
-
-
-
-

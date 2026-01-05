@@ -1,5 +1,4 @@
 from core_interfaces import (
-    PointRd,
     LpMetricRd,
     StdBorelSpaceRd,
     generate_event_family,
@@ -11,7 +10,6 @@ from core_interfaces import (
     LaplaceRandomWalkKernelRd,
     StudentTRandomWalkKernelRd,
     UniformBallRandomWalkKernelRd,
-
 )
 from contract_checks import (
     check_metric_contract,
@@ -42,6 +40,7 @@ from operators.test_functions import (
     payoff_call,
     payoff_put,
 )
+from operators.custom_types import PointRd
 import seaborn as sns
 import pandas as pd
 import random
@@ -166,7 +165,7 @@ if __name__ == "__main__":
         )
         anim.save(gif_path, writer=animation.PillowWriter(fps=12))
         plt.close(fig)
-        
+
     def animate_paths_r3(
         paths: dict[str, list[PointRd]], title: str, filename: str
     ) -> None:
@@ -233,7 +232,7 @@ if __name__ == "__main__":
         )
         anim.save(gif_path, writer=animation.PillowWriter(fps=12))
         plt.close(fig)
-        
+
     def animate_paths_r2(
         paths: dict[str, list[PointRd]], title: str, filename: str
     ) -> None:
@@ -379,7 +378,7 @@ if __name__ == "__main__":
     ax.set_ylabel("y")
     ax.set_zlabel("z")
     save_fig("markov_paths_r3.png")
-    
+
     animate_path_r3(
         path_3d,
         "Correlated random walk in R^3 (evolution)",
@@ -399,7 +398,7 @@ if __name__ == "__main__":
             init=NormalRd(mean=(0.0, 0.0), std=0.4),
             kernel=kernel,
         )
-    
+
         alt_path_2d = mp_alt_2d.sample_path(240, rng=random.Random(20))
         alt_paths_2d[label] = alt_path_2d
         animate_path_r2(

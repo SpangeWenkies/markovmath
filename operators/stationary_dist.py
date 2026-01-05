@@ -1,16 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Generic, Sequence, TypeVar, Callable
+from typing import Any, Generic, Sequence, Callable
 import random
 
-from .custom_types import DensityVector
-from .generators import Generator
+from .custom_types import DensityVector, Generator, X
 from .adjoint import AdjointGenerator
 
-DensityLike = TypeVar("DensityLike")
-LawLike = TypeVar("LawLike")
-X = TypeVar("X")
 
 @dataclass(slots=True)
 class StationaryDistributionSolver(Generic[X]):
@@ -33,7 +29,7 @@ class StationaryDistributionSolver(Generic[X]):
         adjoint_p = self.adjoint.apply_to_density(p)
         updated = [pi + self.dt * dpi for pi, dpi in zip(p, adjoint_p)]
         return _normalize_density_vector(updated)
-    
+
     def check_foster_lyapunov(
         self,
         generator: Generator[X],
@@ -56,11 +52,11 @@ class StationaryDistributionSolver(Generic[X]):
                 threshold=None,
                 message="Lyapunov function must be nonnegative.",
             )
-        threshold = f_threshold if f_threshold is not None else _quantile(f_values, 0.75)
+        threshold = (
+            f_threshold if f_threshold is not None else _quantile(f_values, 0.75)
+        )
         region = [
-            i
-            for i, value in enumerate(f_values)
-            if value >= threshold and value > 0.0
+            i for i, value in enumerate(f_values) if value >= threshold and value > 0.0
         ]
         if not region:
             return FosterLyapunovResult(
@@ -100,7 +96,6 @@ class StationaryDistributionSolver(Generic[X]):
             threshold=threshold,
             message="Foster-Lyapunov drift condition holds on high-f region.",
         )
-
 
     def solve_truncated(
         self,
@@ -177,12 +172,14 @@ class StationaryDistributionSolver(Generic[X]):
                 break
             p = self._step(p)
         return _normalize_density_vector([(1.0 - lam) * ti for ti in total])
-    
+
+
 def _normalize_density_vector(p: DensityVector) -> list[float]:
     total = float(sum(p))
     if total <= 0:
         raise ValueError("density must have positive total mass")
     return [float(pi) / total for pi in p]
+
 
 def _default_quadratic_lyapunov(x: X) -> float:
     if isinstance(x, (int, float)):

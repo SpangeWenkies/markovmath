@@ -6,9 +6,7 @@ import math
 from core_interfaces import (
     MetricSpace,
     Sampler,
-    X,
     Event,
-    E,
     MarkovKernel,
     MeasurableSpace,
     Measure,
@@ -18,16 +16,15 @@ from core_interfaces import (
     ProbabilityMeasure,
     DensityEvolution,
     LawEvolution,
-    Density,
-    PointRd,
 )
+from operators.custom_types import Density, E, PointRd, X
 from operators import (
     DiscreteResolvent,
     Observable,
     Scalar,
     DiscreteSemigroup,
     ContinuousSemigroup,
-    Generator
+    Generator,
 )
 
 
@@ -349,6 +346,7 @@ def check_event_probabilities_monotonicity_additivity(
     pAc = estimate_prob(mp.init, Ac, mc_n, random.Random(3))
     print(f"Complement additivity: P(A)+P(Ac)≈{pA + pAc:.4f} (should be ≈ 1)")
 
+
 def check_discrete_chapman_kolmogorov(
     semigroup: DiscreteSemigroup[X],
     f: Observable[X],
@@ -402,7 +400,7 @@ def check_discrete_resolvent_identity(
     - lhs = U_λ f(x0) estimated by geometric stopping time
     - rhs = f(x0) + λ E[ U_λ f(X_1) ] where the expectation is outer MC and U_λ f(X_1)
       is estimated with an inner MC at each visited X_1.
-      
+
     Numerically verifies the discrete resolvent identity:
 
         U_\lambda f(x) = f(x) + \lambda (T U_\lambda f)(x)
@@ -417,9 +415,9 @@ def check_discrete_resolvent_identity(
       - This is a nested Monte Carlo check, which sadly means variance can be high for unbounded f.
         Prefer bounded f (indicators, tanh, cos, clipped observables).
       - Passing the check provides confidence; failure indicates either a bug or insufficient sampling.
-      - If it's slow, reduce n_states first, then reduce n_outer, then reduce n_paths_inner. 
+      - If it's slow, reduce n_states first, then reduce n_outer, then reduce n_paths_inner.
         - If it fails sporadically, increase those (or loosen tol) or use bounded f
-      
+
     """
     if n_outer <= 0 or n_inner <= 0:
         raise ValueError("n_outer,n_inner must be > 0")
@@ -454,7 +452,11 @@ def estimate_drift_condition(
         b = -float("inf")
         for x in states:
             b = max(b, float(Af(x) + c * f(x)))
-        if best_b is None or b < best_b - 1e-12 or (abs(b - best_b) <= 1e-12 and c > (best_c or 0.0)):
+        if (
+            best_b is None
+            or b < best_b - 1e-12
+            or (abs(b - best_b) <= 1e-12 and c > (best_c or 0.0))
+        ):
             best_b = b
             best_c = float(c)
     return float(best_c or 0.0), float(best_b or 0.0)
@@ -590,7 +592,9 @@ def check_positivity_preservation(
     """
     for x in states:
         if f(x) < -tol:
-            raise ValueError("f must be nonnegative on the tested states for this check.")
+            raise ValueError(
+                "f must be nonnegative on the tested states for this check."
+            )
         val = semigroup.estimate_T(f, x, n_samples=n_samples, rng=rng)
         if float(val) < -tol:
             return False
@@ -642,6 +646,7 @@ def check_invariant_measure(
         acc_tf += float(semigroup.estimate_T(f, x, n_samples=n_inner, rng=rng))
     return acc_f / n_mu, acc_tf / n_mu
 
+
 @dataclass(frozen=True, slots=True)
 class MartingaleDiagnostics:
     mean: float
@@ -685,9 +690,7 @@ def check_martingale_contract(
         x_start = x
         integral = 0.0
         for _k in range(n_steps):
-            Af_x = generator.estimate_Af(
-                f, x, n_samples=n_A_samples, rng=rng
-            )
+            Af_x = generator.estimate_Af(f, x, n_samples=n_A_samples, rng=rng)
             integral += float(Af_x) * dt
             x = kernel.law(x).sample(rng)
         m_t = float(f(x)) - float(f(x_start)) - integral
@@ -757,6 +760,7 @@ def check_drift_condition(
         holds=holds,
     )
 
+
 def _estimate_density_mass(
     density: Density[PointRd],
     *,
@@ -774,7 +778,7 @@ def _estimate_density_mass(
 
     vol = 1.0
     for low, high in bounds:
-        vol *= (high - low)
+        vol *= high - low
 
     acc = 0.0
     for _ in range(n_points):
@@ -826,7 +830,9 @@ def check_law_evolution_normalization(
     mu_t = solver.evolve_law(mu0, t)
     if events is None:
         est = estimate_prob(mu_t, space.whole(), n_samples, rng)
-        assert abs(est - 1.0) <= tol, f"Law normalization failed: P(whole)≈{est}, tol={tol}"
+        assert abs(est - 1.0) <= tol, (
+            f"Law normalization failed: P(whole)≈{est}, tol={tol}"
+        )
         return
 
     total = 0.0

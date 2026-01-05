@@ -1,30 +1,32 @@
-from typing import TypeVar, Callable, TypeAlias, Optional
+from typing import Callable, Optional
+from operators.custom_types import (
+    EigenDecomposition,
+    Matrix,
+    MatrixLike,
+    MutableMatrix,
+    MutableVector,
+    Observable,
+    Vector,
+    VectorLike,
+    X,
+)
 import math
 
-Vector: TypeAlias = tuple[float, ...]
-MutableVector: TypeAlias = list[float]
-VectorLike: TypeAlias = Vector | MutableVector
-
-Matrix: TypeAlias = tuple[tuple[float, ...], ...]
-MutableMatrix: TypeAlias = list[list[float]]
-MatrixLike: TypeAlias = Matrix | MutableMatrix
-
-EigenDecomposition: TypeAlias = tuple[MutableVector, MutableMatrix]
-
-X = TypeVar("X")
-Observable = Callable[[X], float]
 
 def to_mutable(mat: Matrix) -> MutableMatrix:
     """Convert an immutable matrix (tuple-of-tuples) to a mutable list-of-lists."""
     return [list(row) for row in mat]
 
+
 def to_immutable(mat: MutableMatrix) -> Matrix:
     """Convert a mutable list-of-lists matrix to an immutable tuple-of-tuples."""
     return tuple(tuple(row) for row in mat)
 
+
 def to_mutable_point(p: Vector) -> MutableVector:
     """Convert an immutable vector (tuple) to a mutable list."""
     return list(p)
+
 
 def to_immutable_point(p: VectorLike[float]) -> Vector:
     """Convert a sequence of floats to an immutable vector (tuple)."""
@@ -94,6 +96,7 @@ def cholesky_spd(a: MatrixLike, tol: float = 1e-12) -> MutableMatrix:
 
 
 # --- Correlation / covariance repair and PSD handling ---
+
 
 def cholesky_with_jitter(
     a: MatrixLike,
@@ -327,7 +330,7 @@ def nearest_psd_correlation_higham(
       - PSD symmetric matrices
       - matrices with diag = 1
     under Frobenius norm (up to algorithmic tolerances).
-    
+
     If we have close to zero eigenvalues and we would like to not Jitter then we run more iterations of the algorithm
     """
     Y = to_mutable(corr)
@@ -340,7 +343,9 @@ def nearest_psd_correlation_higham(
             Y[i][j] = Y[j][i] = v
 
     if auto_boost_iter and d >= 2:
-        eigvals, _ = jacobi_eigh_sym([row[:] for row in Y], tol=tol)    # use a COPY because jacobi_eigh_sym mutates its input.
+        eigvals, _ = jacobi_eigh_sym(
+            [row[:] for row in Y], tol=tol
+        )  # use a COPY because jacobi_eigh_sym mutates its input.
         # “close to zero” means we are near the PSD boundary, note that convergence can be slower.
         if min(abs(v) for v in eigvals) < near_zero_eig:
             max_iter = max(max_iter, boosted_max_iter)
@@ -365,6 +370,7 @@ def nearest_psd_correlation_higham(
             v = 0.5 * (Y[i][j] + Y[j][i])
             Y[i][j] = Y[j][i] = v
     return to_immutable(Y)
+
 
 def rd_key(x: Vector, ndigits: int = 2) -> Vector:
     """Coarse key for R^d points represented as tuples. Rounds to a grid"""

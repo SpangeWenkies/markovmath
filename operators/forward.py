@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Generic, Optional, TypeVar
+from typing import Any, Generic, Optional
 
-from core_interfaces import Density, DensityEvolution, LawEvolution, ProbabilityMeasure
-
-X = TypeVar("X")
-E = TypeVar("E")
+from core_interfaces import DensityEvolution, LawEvolution, ProbabilityMeasure
+from .custom_types import Density, E, X
 
 
 @dataclass(slots=True)

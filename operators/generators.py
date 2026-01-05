@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Generic, Hashable, Optional, Sequence, TypeAlias, TypeVar
+from typing import Callable, Generic, Hashable, Optional, Sequence
 import random
 
 from helper_funcs import _as_float_seq, _dot
 
 from .discrete_semigroup import DiscreteSemigroup
-from .custom_types import GeneratorDomain, GeneratorSource, Observable, Scalar
-
-X = TypeVar("X")
+from .custom_types import GeneratorDomain, GeneratorSource, Observable, Scalar, X
 
 
 @dataclass(slots=True)
@@ -202,6 +200,7 @@ class ClosedFormGenerator(Generic[X]):
                 total += aij * b[i][j]
         return float(total)
 
+
 @dataclass(slots=True)
 class FiniteStateCTMCGenerator(Generic[X]):
     """Generator for a finite-state CTMC with rate matrix Q."""
@@ -240,5 +239,3 @@ class FiniteStateCTMCGenerator(Generic[X]):
         for j, qij in enumerate(self._rates[i]):
             total += qij * values[j]
         return float(total)
-    
-Generator: TypeAlias = SampledGenerator[X] | ClosedFormGenerator[X] | FiniteStateCTMCGenerator[X]

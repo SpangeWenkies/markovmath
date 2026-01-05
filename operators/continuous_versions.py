@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Generic, Hashable, MutableMapping, Optional, TypeVar
+from typing import Generic, Hashable, MutableMapping, Optional
 import math
 import random
 
 from core_interfaces import MarkovKernel
 from .discrete_resolvent import DiscreteResolvent
 from .discrete_semigroup import DiscreteSemigroup
-from .custom_types import KeyFn, Observable, Scalar
-
-X = TypeVar("X")
+from .custom_types import KeyFn, Observable, Scalar, X
 
 
 @dataclass(slots=True)

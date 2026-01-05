@@ -1,16 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import (
-    Protocol,
-    TypeVar,
-    Generic,
-    Callable,
-    runtime_checkable,
-    TypeAlias,
-    Any,
-    Annotated,
-    Literal,
-)
+from typing import Protocol, Generic, Callable, runtime_checkable, Any, Literal
 from helper_funcs import (
     to_mutable,
     cov_from_stds_and_corr,
@@ -22,24 +12,16 @@ from helper_funcs import (
 )
 import random
 import math
-
-X = TypeVar("X")  # element / point
-E = TypeVar("E")  # event representation
-
-# in R^d do not use np.array as these are not hashable, do Point = tuple[float, ...] of length d
-PointRd: TypeAlias = tuple[float, ...]  # note we need python version >= 3.9 for this, otherwise we need Tuple from typing
-
-Density: TypeAlias = Callable[[X], float]
-
-NonNegativeFloat = Annotated[float, ">=0"]
-
-PositiveFloat = Annotated[float, ">0"]
-
-PositiveRd = Annotated[PointRd, ">0"]
-
-NonNegativeRd = Annotated[PointRd, ">=0"]
-
-Matrix = tuple[tuple[float, ...], ...]  # maybe later on we need a tensor instead of a matrix for certain applications
+from operators.custom_types import (
+    Density,
+    E,
+    Matrix,
+    NonNegativeFloat,
+    NonNegativeRd,
+    PointRd,
+    PositiveFloat,
+    X,
+)
 
 # TODO: finalize a contract testing file holding axiom checks by runtime / property-based tests
 
@@ -134,6 +116,7 @@ class Measure(Protocol[X, E]):
     def to_density(self) -> Density[X]:
         """Return a density p(x) if available; possibly raise if not implemented."""
         ...
+
 
 class Sampler(Protocol[X]):
     """Sampling capability."""
@@ -324,7 +307,7 @@ class CorrelatedGaussianNoiseRd:
               * add jitter \eta I until Cholesky succeeds (common but changes the model: \Sigma -> \Sigma + \eta I).
     """
 
-    stds: PointRd   # or should we use positiveRd even though we do handling of bad matrices below?
+    stds: PointRd  # or should we use positiveRd even though we do handling of bad matrices below?
     corr: Matrix
 
     # If provided corr is indefinite due to estimation/numerics, optionally repair it first.
@@ -412,6 +395,7 @@ class CorrelatedGaussianNoiseRd:
             y[i] = sum(row[j] * z[j] for j in range(d))
         return tuple(y)
 
+
 @dataclass(frozen=True, slots=True)
 class ShiftedCorrelatedGaussianNoiseRd:
     base: CorrelatedGaussianNoiseRd
@@ -422,7 +406,7 @@ class ShiftedCorrelatedGaussianNoiseRd:
         if len(eps) != len(self.shift):
             raise ValueError("dimension mismatch in ShiftedSamplerRd")
         return tuple(self.shift[i] + eps[i] for i in range(len(eps)))
-    
+
 
 @dataclass(frozen=True, slots=True)
 class DriftingCorrelatedGaussianRandomWalkKernelRd:
@@ -430,20 +414,21 @@ class DriftingCorrelatedGaussianRandomWalkKernelRd:
     X_{t+1} = X_t + drift + eps_t,  eps_t ~ N(0, Σ).
     So: X_{t+1} | X_t=x ~ N(x + drift, Σ).
     """
-    
+
     # TODO: change constant drift to possible state-dependent drift (for e.g. mean reversion)
-    # If you want state dependent drift, we could store drift in Callable[[PointRd], PointRd] 
+    # If you want state dependent drift, we could store drift in Callable[[PointRd], PointRd]
     # and compute shift = x + drift(x) in law.
-    
-    noise: CorrelatedGaussianNoiseRd   # mean-zero correlated noise
-    drift: PointRd                     # mean increment per step (μ)
+
+    noise: CorrelatedGaussianNoiseRd  # mean-zero correlated noise
+    drift: PointRd  # mean increment per step (μ)
 
     def law(self, x: PointRd) -> ShiftedCorrelatedGaussianNoiseRd:
         if len(x) != len(self.drift):
             raise ValueError("dimension mismatch: x vs drift")
         shift = tuple(xi + di for xi, di in zip(x, self.drift))
         return ShiftedCorrelatedGaussianNoiseRd(base=self.noise, shift=shift)
-    
+
+
 class LawEvolution(Protocol[X, E]):
     """
     Contract for evolving probability laws forward in time. (Kolmogorov)
@@ -455,7 +440,9 @@ class LawEvolution(Protocol[X, E]):
       - Semigroup/consistency assumptions are left to solver documentation.
     """
 
-    def evolve_law(self, mu0: ProbabilityMeasure[X, E], t: NonNegativeFloat) -> ProbabilityMeasure[X, E]: ...
+    def evolve_law(
+        self, mu0: ProbabilityMeasure[X, E], t: NonNegativeFloat
+    ) -> ProbabilityMeasure[X, E]: ...
 
 
 class DensityEvolution(Protocol[X]):
@@ -726,10 +713,10 @@ def generate_event_family(
     e.g. catching problems like non-negativity of a measure, or being a probability measure.
     borel sets are the canonical measurable sets for polish spaces (which the state spaces are)
     """
-    
+
     # TODO: shouldn't we use half open balls as these can create the open topology? does this better or worsen computational feasibility?
-        # what theorems said half open balls could do this again?
-    
+    # what theorems said half open balls could do this again?
+
     known: dict[tuple, Event[X]] = {}
 
     def add(ev: Event[X]) -> None:
