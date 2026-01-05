@@ -6,10 +6,42 @@ from .adjoint import (
     ou_adjoint_1d,
 )
 from .continuous_versions import ContinuousResolvent, ContinuousSemigroup
-from .forward import ForwardEquation
-from .generators import ClosedFormGenerator, Generator, SampledGenerator, FiniteStateCTMCGenerator
+from .custom_types import (
+    Density,
+    DensityLike,
+    DensityVector,
+    E,
+    EigenDecomposition,
+    FiniteGeneratorDomain,
+    Generator,
+    GeneratorDomain,
+    GeneratorSource,
+    KeyFn,
+    LawLike,
+    Matrix,
+    MatrixLike,
+    MutableMatrix,
+    MutableVector,
+    NonNegativeFloat,
+    NonNegativeRd,
+    Observable,
+    PointRd,
+    PositiveFloat,
+    PositiveRd,
+    Scalar,
+    Vector,
+    VectorLike,
+    X,
+)
 from .discrete_resolvent import DiscreteResolvent
 from .discrete_semigroup import DiscreteSemigroup
+from .forward import ForwardEquation
+from .generators import (
+    ClosedFormGenerator,
+    FiniteStateCTMCGenerator,
+    SampledGenerator,
+)
+from .stationary_dist import FosterLyapunovResult, StationaryDistributionSolver
 from .test_functions import (
     complex_exponential,
     coordinate,
@@ -20,24 +52,13 @@ from .test_functions import (
     sin_frequency,
     squared_norm,
 )
-from .custom_types import (
-    DensityVector,
-    FiniteGeneratorDomain,
-    GeneratorDomain,
-    GeneratorSource,
-    KeyFn,
-    Observable,
-    Scalar,
-)
-from .stationary_dist import (
-    StationaryDistributionSolver,
-)
 
 __all__ = [
     "AdjointGenerator",
     "ClosedFormDiffusionAdjoint1D",
     "FiniteStateCTMCAdjoint",
     "StationaryDistributionSolver",
+    "FosterLyapunovResult",
     "black_scholes_adjoint_1d",
     "ou_adjoint_1d",
     "ContinuousResolvent",
@@ -46,7 +67,7 @@ __all__ = [
     "ClosedFormGenerator",
     "Generator",
     "SampledGenerator",
-    "FiniteStateCTMCGenerator"
+    "FiniteStateCTMCGenerator",
     "DiscreteResolvent",
     "DiscreteSemigroup",
     "complex_exponential",
@@ -57,11 +78,28 @@ __all__ = [
     "payoff_put",
     "sin_frequency",
     "squared_norm",
+    "Density",
+    "DensityLike",
     "DensityVector",
+    "E",
+    "EigenDecomposition",
     "FiniteGeneratorDomain",
     "GeneratorDomain",
     "GeneratorSource",
     "KeyFn",
+    "LawLike",
+    "Matrix",
+    "MatrixLike",
+    "MutableMatrix",
+    "MutableVector",
+    "NonNegativeFloat",
+    "NonNegativeRd",
     "Observable",
+    "PointRd",
+    "PositiveFloat",
+    "PositiveRd",
     "Scalar",
+    "Vector",
+    "VectorLike",
+    "X",
 ]
