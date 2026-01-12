@@ -6,10 +6,10 @@ MarkovMath is a research-oriented Python codebase whose goal is to **translate m
 The project is intentionally staged:
 
 - **Stage 1 (current):** a rigorous *mathematical backbone* for Markov processes (kernels, measurable spaces, semigroups/resolvents/generators, basic potential-theoretic scaffolding).
-- **Stage 2 (planned):** more advanced PDE math and addition of (functional) analytical solving of the processes by use of Mille-Yosida, Lax-Milgram, Dunford-Pettis
-- **Stage 2 (planned):** stable simulation workflows + examples.
-- **Stage 3 (planned):** **gradient estimation tools** (pathwise / reparameterization and score-function / likelihood-ratio estimators, plus ergodic sensitivity ideas where applicable).
-- **Stage 4 (later):** differentiable **inference** layers (e.g., differentiating through MCMC/SMC/VI steps, where well-defined).
+- **Stage 2 (planned):** more advanced PDE math and addition of (functional) analytical solving of the processes by use of Mille-Yosida, Lax-Milgram, Dunford-Pettis.
+- **Stage 3 (planned):** stable simulation workflows + examples.
+- **Stage 4 (planned):** **gradient estimation tools** (pathwise / reparameterization and score-function / likelihood-ratio estimators, plus ergodic sensitivity ideas where applicable).
+- **Stage 5 (later):** differentiable **inference** layers (e.g., differentiating through MCMC/SMC/VI steps, where well-defined).
 
 > **Important:** MarkovMath does *not* yet implement differentiable algorithms or inference.
 > The differentiable direction is a **planned phase** that depends on completing the Markov-process backbone first.
@@ -39,12 +39,15 @@ MarkovMath’s philosophy:
 
 ### Core abstractions
 
-- **State / Space / MetricSpace**: state type + metric (when applicable)
-- **Event / MeasurableSpace**: measurable-set objects, with generator-based construction
-- **Measure / ProbabilityMeasure**: measures on events (often sample-based)
-- **Sampler**: simulation capability for workflow glue
-- **MarkovKernel**: transition kernel returning a “law” (sampler) given a state
-- **MarkovProcess**: initial law + kernel, with `sample_path` for simulation
+- **State / Space / MetricSpace**: state type + metric interface; includes an Lp metric on \(\mathbb{R}^d\).
+- **Event / MeasurableSpace**: measurable-set objects with explicit constructors for whole/empty sets.
+- **Measure / ProbabilityMeasure**: measures and probability measures with optional density accessors.
+- **Sampler**: uniform sampling interface for simulation glue.
+- **MarkovKernel**: transition kernel returning a “law” (sampler) given a state.
+- **MarkovProcess**: initial law + kernel with `sample_path` for discrete simulation.
+- **Law/Density evolution protocols**: `LawEvolution` + `DensityEvolution` interfaces for forward solvers.
+- **Concrete kernels/samplers**: univariate and \(R^d\) Gaussian samplers, random-walk kernels, and
+  correlated Gaussian noise with PSD repair/jitter fallbacks for covariance handling.
 
 ### Event language: a finite Borel fragment
 
@@ -55,8 +58,27 @@ measurable sets from:
 - open balls (generators)
 - complement / union / intersection (boolean operations)
 
+Extra utilities include:
+
+- **event canonicalization** (keys for dedup/sorting),
+- **simplification rules** (De Morgan, idempotence, absorption),
+- **finite event-family generation** (depth-bounded closure) for testing and diagnostics.
+
 This is intentionally a **finite, computable fragment** for testing and experimentation
 (not an enumeration of all Borel sets as that is ofcourse not possible).
+
+### Built-in samplers and kernels
+
+- **Gaussian samplers** on R and R^d (independent or correlated)
+- **Random-walk kernels** in 1D and R^d
+- **Drifted correlated Gaussian random walks** for mean-shifted dynamics
+
+### Linear-alg + covariance utilities
+
+- Cholesky (SPD) + jittered fallbacks
+- Eigen-based PSD factorization for degenerate covariances
+- Correlation-matrix repair (quick projection and Higham/Dykstra)
+- Vector/matrix helpers and indicator/feature utilities
 
 ### Contract checks (Monte Carlo)
 
@@ -70,6 +92,7 @@ Python can’t enforce measure-theoretic axioms at the type level, so MarkovMath
 - martingale / drift / stability diagnostics (Lyapunov-style checks)
 - positivity and sup-norm contraction heuristics
 - invariant-measure diagnostics
+- law/density normalization and mass conservation checks
 - etc.
 
 These tests **don’t prove theorems**, but they catch implementation bugs early and help keep
@@ -79,11 +102,29 @@ interfaces honest.
 
 The `operators/` package contains operator-level pieces (at varying maturity):
 
-- discrete semigroup/resolvent Monte Carlo estimators
-- continuous-time wrappers via time discretization
-- generator constructions (sampled and closed-form)
-- adjoint / forward tools for selected examples
-- test-function helpers (common observables)
+- **Discrete semigroup/resolvent** Monte Carlo estimators (with optional caching).
+- **Continuous-time wrappers** via time discretization (semigroup + resolvent).
+- **Generators**:
+  - sampled generator \(A_{\Delta t} = (T-I)/\Delta t\),
+  - closed-form drift/diffusion and jump generators (finite-difference gradients),
+  - finite-state CTMC generator from a rate matrix.
+- **Adjoint/forward tools**:
+  - 1D diffusion adjoints (OU, Black–Scholes helpers),
+  - finite-state CTMC adjoint,
+  - a forward equation wrapper that dispatches on law vs density evolution.
+- **Stationary distribution solver** for finite-state models with Foster–Lyapunov drift checks.
+- **Test-function helpers** (coordinate, linear, monomial, norms, oscillatory, payoff functions).
+
+### Numerical helper utilities
+
+`helper_funcs.py` includes:
+
+- basic matrix/vector conversion helpers,
+- correlation/covariance construction and validation,
+- Cholesky factorization + jitter fallback,
+- PSD projection + eigen-based factorization,
+- quick and Higham-style nearest correlation matrix repair,
+- small utilities for indicator observables and coarse state keys.
 
 ---
 
