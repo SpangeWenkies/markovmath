@@ -1,270 +1,122 @@
-# MarkovMath — A formal mathematics toolkit for Markov processes on general state spaces (with differentiable extensions)
+# MarkovMath
+**A math-first toolkit for Markov processes on general state spaces.**
 
-MarkovMath is a research-oriented codebase in python for expressing and testing core objects from **probability on general state spaces** in a way that is:
+MarkovMath is a research-oriented Python codebase whose goal is to **translate measure-theoretic Markov process theory into explicit, composable, testable computational objects**.
 
-* **explicit** about the underlying mathematical structures (state space, σ-algebra, measures, kernels),
-* **composable** (build processes from kernels, build measurable sets from generators),
-* **testable** (Monte Carlo “contract tests” for axioms and expected identities),
-* and extensible toward **differentiable algorithms** (gradients of expectations through stochastic dynamics).
+The project is intentionally staged:
 
-The long-term goal is to provide a clean “mathematical backbone” you can use to implement and verify constructions from modern Markov process theory, Dirichlet form theory, and potential theory.
+- **Stage 1 (current):** a rigorous *mathematical backbone* for Markov processes (kernels, measurable spaces, semigroups/resolvents/generators, basic potential-theoretic scaffolding).
+- **Stage 2 (planned):** more advanced PDE math and addition of (functional) analytical solving of the processes by use of Mille-Yosida, Lax-Milgram, Dunford-Pettis
+- **Stage 2 (planned):** stable simulation workflows + examples.
+- **Stage 3 (planned):** **gradient estimation tools** (pathwise / reparameterization and score-function / likelihood-ratio estimators, plus ergodic sensitivity ideas where applicable).
+- **Stage 4 (later):** differentiable **inference** layers (e.g., differentiating through MCMC/SMC/VI steps, where well-defined).
 
-Python being OOP might not be ideal. Future Rust or C++ implementation might be coming later.
-
----
-
-## Project aims
-
-This project aims to cover (definitions, constructions, and key results needed for):
-
-* **Markov processes** on **general state spaces** (standard Borel / Polish settings)
-* **Symmetric Markov processes** (as associated to symmetric Dirichlet forms)
-* **Hunt processes** (strong Markov + quasi-left-continuity, right-continuous paths, etc.)
-* **(Non-symmetric) Dirichlet forms** and associated semigroups/resolvents
-* **Potential theory** for Markov processes
-* **Capacities** (Choquet capacities, polar sets, quasi-everywhere statements)
-* **Resolvents** and their relationships to semigroups, generators, and potentials
-
-In addition, the project aims to encode the **theorems/lemmas/definitions** required to move between:
-
-* kernel-based definitions (Markov kernels, transition functions),
-* analytic objects (forms, generators, semigroups),
-* and potential-theoretic objects (excessive functions, resolvents, capacities).
-
-The philosophy is: *represent the objects in code with clear interfaces to follow mathematics and statistic, document the math contract each interface implies, then validate implementations with lightweight tests and examples.*
+> **Important:** MarkovMath does *not* yet implement differentiable algorithms or inference.
+> The differentiable direction is a **planned phase** that depends on completing the Markov-process backbone first.
 
 ---
 
-## Current scope (what exists today)
+## Why MarkovMath exists
 
-### Core interfaces
+Many libraries make stochastic simulation easy, but fewer make it **explicit about the underlying mathematics**:
 
-The code defines a small set of abstractions that mirror common mathematical objects:
+e.g., in code rather than Mathematics:
+- What is the state space and σ-algebra?
+- What is the kernel as a measurable object (not just a sampler)?
+- What contracts do semigroup/resolvent/generator objects satisfy?
+- How do we validate that an implementation is consistent with the theory?
 
-* **State/Space / MetricSpace**: a state type and a distance (when applicable)
-* **Event / MeasurableSpace**: events as measurable sets; Borel-like construction via generators
-* **Measure / ProbabilityMeasure**: measures on events (often sample-only in practice)
-* **Sampler**: sampling capability for simulation-based workflows
-* **MarkovKernel**: transition kernel returning a “law” (sampler) given a current state
-* **MarkovProcess**: initial law + kernel, with `sample_path` for simulation
+MarkovMath’s philosophy:
 
-### Event language (finite Borel fragment)
+1. **Interfaces mirror mathematics** (kernels, processes, semigroups, resolvents, generators, domains, etc.).
+2. **Contracts are explicit** (axioms are documented as “math contracts” each interface assumes, later on possible Lean verification).
+3. **Validation is pragmatic** (Monte Carlo contract tests catch bugs and enforce consistency early).
+4. **Theory → code is the point** (the library is an exercise in making abstract statements executable).
 
-For Polish/standard Borel spaces, Borel sets are generated by open sets; in metric spaces, open balls are convenient generators. The project includes an “event AST” (abstract syntax tree) for building sets from:
+---
 
-* open balls (generators)
-* complement / union / intersection (boolean operations)
+## What exists today (current scope)
 
-This yields a **finite, computable fragment** of the Borel σ-algebra useful for testing and experimentation (not a full enumeration of all Borel sets).
+### Core abstractions
+
+- **State / Space / MetricSpace**: state type + metric (when applicable)
+- **Event / MeasurableSpace**: measurable-set objects, with generator-based construction
+- **Measure / ProbabilityMeasure**: measures on events (often sample-based)
+- **Sampler**: simulation capability for workflow glue
+- **MarkovKernel**: transition kernel returning a “law” (sampler) given a state
+- **MarkovProcess**: initial law + kernel, with `sample_path` for simulation
+
+### Event language: a finite Borel fragment
+
+For Polish/standard Borel settings, Borel sets are generated by open sets. In metric spaces,
+open balls are convenient generators. MarkovMath includes an “event AST” for building
+measurable sets from:
+
+- open balls (generators)
+- complement / union / intersection (boolean operations)
+
+This is intentionally a **finite, computable fragment** for testing and experimentation
+(not an enumeration of all Borel sets as that is ofcourse not possible).
 
 ### Contract checks (Monte Carlo)
 
-Because Python cannot enforce measure-theoretic axioms at the type level, the project uses **contract tests**:
+Python can’t enforce measure-theoretic axioms at the type level, so MarkovMath uses
+**contract tests** to validate that implementations behave like the intended objects:
 
-* metric sanity (symmetry, triangle inequality on sampled points)
-* kernel sanity (sampling validity; basic consistency checks via test functions)
-* measure-like sanity on finite event families (monotonicity/additivity heuristics)
-* semigroup/resolvent identities (Chapman–Kolmogorov, discrete resolvent identity)
-* martingale, drift, and stability diagnostics (Lyapunov-style checks)
-* positivity, sup-norm contraction, invariant-measure heuristics
-* law/density normalization checks for evolution solvers
+- metric sanity (symmetry / triangle inequality on sampled points)
+- kernel sanity (basic consistency checks via test functions)
+- measure sanity on finite event families (monotonicity/additivity heuristics)
+- semigroup/resolvent identities (discrete/continuous Chapman–Kolmogorov, resolvent identity)
+- martingale / drift / stability diagnostics (Lyapunov-style checks)
+- positivity and sup-norm contraction heuristics
+- invariant-measure diagnostics
+- etc.
 
-These tests **don’t** prove theorems, but they catch implementation bugs early and make the abstractions usable.
+These tests **don’t prove theorems**, but they catch implementation bugs early and help keep
+interfaces honest.
 
-#### What the contract checks cover
+### Operator layer (in progress)
 
-Low-level helpers:
+The `operators/` package contains operator-level pieces (at varying maturity):
 
-* `estimate_prob` — empirical probability of an event under a sampler.
-* `approx_subset`, `approx_disjoint` — heuristic subset/disjointness checks via sampling.
-
-Core contracts:
-
-* `check_metric_contract` — Monte Carlo check of metric axioms.
-* `check_measure_contracts` — measure sanity (empty set, nonnegativity, monotonicity, additivity).
-* `check_kernel_contracts` — two-path kernel consistency check for test functions.
-* `check_event_probabilities_monotonicity_additivity` — event-family diagnostics with printed summaries.
-
-Semigroup/resolvent diagnostics:
-
-* `check_discrete_chapman_kolmogorov` — compare \(T^{m+n} f\) vs \(T^m(T^n f)\).
-* `check_continuous_chapman_kolmogorov` — discretized Chapman–Kolmogorov for \(P_t\).
-* `check_discrete_resolvent_identity` — checks \(U_\lambda f = f + \lambda T(U_\lambda f)\).
-* `check_kolmogorov_backward_discretized` — finite-difference backward equation check.
-
-Stability and invariance:
-
-* `estimate_drift_condition` — fit \(Af \le -cf + b\) over sampled states.
-* `check_discrete_martingale` — discrete-time martingale diagnostic for \(A = T - I\).
-* `check_martingale_contract` — continuous-time martingale diagnostic via Riemann sum.
-* `check_drift_condition` — Monte Carlo check of \(Af \le -cf + b\).
-* `check_positivity_preservation` — verifies \(f \ge 0 \Rightarrow Tf \ge 0\) on samples.
-* `check_supnorm_contraction` — empirical \(\|Tf\|_\infty \le \|f\|_\infty\).
-* `check_invariant_measure` — compares \(E_\mu[f]\) and \(E_\mu[Tf]\).
-
-Forward evolution checks:
-
-* `check_density_evolution_mass_conservation` — integrates density to verify mass preservation.
-* `check_law_evolution_normalization` — checks law normalization (whole space or partition).
-
-### Generator domains and stability checks
-
-The generator layer treats a “rich class of test functions” as a concrete list plus
-assumptions. In code this is represented by the `GeneratorDomain` protocol
-(`operators/custom_types.py`), which stores a `functions` sequence along with human-readable
-`assumptions` (e.g., boundedness, smoothness, compact support). `FiniteGeneratorDomain`
-is a concrete implementation of this protocol for explicit finite lists; other
-implementations can keep the same interface while providing richer membership logic.
-
-For stability/Lyapunov diagnostics, the contract checks include a drift condition
-helper that samples points and estimates whether `Af ≤ -c f + b` holds. This is a
-Monte Carlo heuristic and again serves as a quick stability check rather than a proof.
-
-### Operator layer (unfinished)
-
-The `operators/` package contains the current operator-level implementations:
-
-* **Discrete semigroup/resolvent**: `DiscreteSemigroup` and `DiscreteResolvent` provide
-  Monte Carlo estimators for \(T^n f\) and \(U_\lambda f\), with optional caching hooks.
-* **Continuous-time wrappers**: `ContinuousSemigroup` and `ContinuousResolvent` build
-  time-discretized approximations from small-step kernels.
-* **Generators**: `SampledGenerator` (from a semigroup with step size) and
-  `ClosedFormGenerator` (drift/diffusion/jump or custom generator).
-* **Adjoint/forward tools**: `AdjointGenerator` protocols with concrete adjoints for
-  1D diffusions and finite-state CTMCs, plus `StationaryDistributionSolver` for
-  adjoint-based steady-state estimation.
-* **Forward equation wrapper**: `ForwardEquation` dispatches between law and density
-  evolution implementations.
-* **Test functions**: helpers in `operators/test_functions.py` for common observables
-  (coordinates, monomials, sinusoids, payoff functions).
+- discrete semigroup/resolvent Monte Carlo estimators
+- continuous-time wrappers via time discretization
+- generator constructions (sampled and closed-form)
+- adjoint / forward tools for selected examples
+- test-function helpers (common observables)
 
 ---
 
-## Mathematical positioning
+Planned gradient-estimation families:
+- **Pathwise / reparameterization gradients** (when transitions can be written as
+  \(X_{t+1}=F_\theta(X_t,\varepsilon_t)\))
+- **Score-function / likelihood-ratio estimators** (REINFORCE-style; especially for discrete kernels)
+- **Ergodic sensitivity ideas** for stationary expectations (Poisson equation / regenerative approaches, where applicable)
+- **SDE sensitivities** (stochastic adjoints / flow-based sensitivities for discretized dynamics, as needed)
 
-### General state spaces
-
-The intended baseline setting is **standard Borel / Polish spaces**, where:
-
-* measurable sets are typically the **Borel σ-algebra**,
-* Markov kernels are measurable in the state variable,
-* many results (regular conditional probabilities, disintegrations, etc.) behave well.
-
-### Symmetry, Dirichlet forms, and Hunt processes
-
-The planned analytic layer is:
-
-* Dirichlet forms (symmetric and non-symmetric)
-* quasi-regularity conditions leading to Hunt processes
-* potentials, excessive functions, capacities, polar sets
-
-Basic semigroups/resolvents/generators are already partly finished implementing in `operators/`, with
-the remaining analytic structure planned as future work.
-
-The code will treat these as structured objects whose properties are **contracts** backed by:
-
-* definitions and stated assumptions,
-* verification where possible in special cases,
-* regression tests based on known examples (Brownian motion, OU process, jump processes, etc.).
+This stage is intentionally postponed until the Markov backbone is stable, because the gradient
+layer depends on having clean representations of kernels, paths, and objectives.
 
 ---
 
-## Possible Roadmap
+## Non-goals (for now)
 
-### 1) Markov process theory layer
-
-* transition function (P_t), semigroup (T_t) on functions (**discrete/continuous semigroup estimators already implemented**)
-* strong Markov property objects (stopping times, shift operators)
-* sample-path properties (cadlag, right continuity)
-* Hunt process conditions and constructions from kernels/semigroups
-
-### 2) Dirichlet form layer
-
-* bilinear forms (\mathcal{E}(u,v)) on (L^2(E,m))
-* symmetric and non-symmetric forms; sector condition
-* associated semigroup and resolvent (**resolvent estimators implemented; analytic form theory still planned**)
-* generators and domains (**sampled + closed-form generator classes implemented**)
-* quasi-regularity and process association
-
-### 3) Potential theory layer
-
-* resolvent (U_\alpha), excessive functions, potentials (**discrete/continuousresolvent estimators already implemented**)
-* capacity of sets, quasi-continuous versions, polar sets
-* fine topology, hitting probabilities, equilibrium potentials (in examples)
-
-### 4) Examples library
-
-* finite-state chains (exact measures)
-* ( \mathbb{R}^d ) diffusions (via discretization)
-* jump processes / Lévy-type examples (as feasible)
-* explicit Dirichlet-form examples where capacities are computable or estimable
-
-### 5) Lean 4 
-* Formalize the contracts in Lean as opposed to sampling version contract checks or prove axioms 
-(triangle inequality, countable additivity, etc.).
-* Formalize the specific structures you use
-(e.g., prove that LpMetricRd satisfies metric axioms, or that a specific kernel preserves measurability.)
-* If we want Python to rely on the Lean proof, we need an integration layer 
-(exporting verified artifacts, or a re-implementation in Lean with a proof certificate).
----
-
-## Differentiable algorithms extension
-
-After the “math backbone” is stable, the project will extend toward **differentiable algorithms**: methods to compute/estimate gradients of objectives involving stochastic systems.
-
-### Core objective type
-
-Many learning/inference problems reduce to:
-[
-J(\theta) = \mathbb{E}\big[f(X^\theta)\big],
-]
-where (X^\theta) may be:
-
-* a Markov chain after (T) steps,
-* a discretized SDE path,
-* or the output of a stochastic simulator.
-
-The differentiable extension aims to provide tools to estimate:
-[
-\nabla_\theta J(\theta).
-]
-
-### Gradient estimation methods (planned)
-
-* **Score-function / likelihood-ratio estimators** (REINFORCE-style): works for discrete chains, high variance → needs variance reduction.
-* **Pathwise / reparameterization gradients**: when (X_{t+1} = F_\theta(X_t,\varepsilon_t)) with fixed noise; enables backprop through simulation.
-* **Sensitivity analysis for ergodic chains**: gradients of stationary expectations via Poisson equation / regenerative methods.
-* **SDE sensitivities**: discretized dynamics, stochastic adjoints; links to stochastic flows and Malliavin-style ideas (as needed for advanced cases).
-* **Differentiating through inference algorithms**: e.g. MCMC/SMC/VI steps as differentiable programs (where appropriate and well-defined).
-
-The goal is to connect rigorous Markov process structure (kernels, resolvents, semigroups) with practical gradient-based optimization workflows.
-
----
-
-## Design principles
-
-* **Interfaces mirror math**: objects are named and structured like their mathematical counterparts.
-* **Separation of concerns**: sampling vs evaluation, topology vs measurable structure, kernel vs process.
-* **Contracts are explicit**: many axioms can’t be enforced; they are stated clearly and tested heuristically.
-* **Small, composable pieces**: you can swap metrics, kernels, or event generators without rewriting everything.
-* **Examples as truth anchors**: each new concept should come with at least one “known” example.
-
----
-
-## Getting started (quick demo)
-
-...
-
-(See the demo in the main script for a concrete example.)
+- A production-grade probabilistic programming language (PPL)
+- A high-performance DSL (though a future Rust/C++ backend is possible)
+- “Full formal verification” (there is interest in formalization, but the current focus is correctness-by-contracts + examples)
 
 ---
 
 ## Status
 
-This project is an evolving research codebase. Some components are currently “formal interfaces + examples + tests”, and later layers (Dirichlet forms / capacities / resolvents) are planned extensions.
+This is a starting research codebase. Expect breaking changes while the mathematical backbone
+is still in dev.
 
-Contributions and refactors should preserve:
+---
 
-* clear mathematical intent,
-* explicit contracts,
-* and reproducible examples.
+## Getting started
+
+For now, browse the repo
+
+---
+
